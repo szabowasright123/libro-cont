@@ -13,5 +13,18 @@ a 31/12/2024 con los valores esperados:
 | ADA    | 0              |
 | TOKENX | 0              |
 
-Se implementarán junto con el motor de cálculo (fase posterior a P0). En P0 esta carpeta
-queda como marcador: aún no hay lógica de cálculo que probar.
+## Ficheros
+
+- `mini-caso.ts` — **datos** (no es un test): transcribe el CSV a 19 apuntes del
+  dominio (la retirada+depósito cripto del 20/03 se fusionan en una TRANSFERENCIA),
+  las ubicaciones (Kraken/Ledger/EXTERIOR), los saldos esperados y la tabla de
+  contravalores (parte dura del CSV + parte asumida; ver cabecera del fichero y
+  `docs/COTEJO_F1.md`).
+- `saldos.test.ts` — golden intocable de SALDOS: totales por activo y reparto por
+  ubicación a 31/12/2024, más cortes temporales y detección de saldo negativo.
+- `fifo.test.ts` — GyP FIFO por transmisión del mini-caso (dependen de los
+  contravalores asumidos). Cada esperado va comentado con los lotes que consume.
+
+Property tests del FIFO y pruebas de `cuadre`/`validaciones` viven junto al motor en
+`src/engine/*.test.ts`. La tabla de cotejo manual contra la plantilla está en
+`docs/COTEJO_F1.md`.

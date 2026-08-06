@@ -259,6 +259,23 @@ export interface Ubicacion {
   fechaAlta: FechaHoraISO
   fechaCierre?: FechaHoraISO
   notas?: string
+  /**
+   * Vía de evidencia de la ubicación (ficha ampliada, P6): qué clase de documentación
+   * genera de forma natural la vía por la que entran/salen activos aquí (KYC del exchange,
+   * P2P con justificante bancario, minería propia…). Clave del catálogo `VIAS_EVIDENCIA`
+   * (src/engine/trazabilidad.ts). Opcional: es orientación probatoria, no cálculo.
+   */
+  viaEvidencia?: string
+  /** Nota libre del alumno sobre la evidencia de esta ubicación (ficha ampliada). */
+  notasEvidencia?: string
+  /**
+   * ¿La ubicación está radicada en el EXTRANJERO? (Bloque 3, P7.) Relevante SOLO para el
+   * aviso informativo del modelo 721 (saldos de exchanges extranjeros > 50.000 € a 31/12).
+   * Opcional: no altera ningún cálculo del Libro; es un atributo declarativo del alumno.
+   */
+  extranjero?: boolean
+  /** País de radicación (informativo, para el aviso 721). Texto libre del alumno. */
+  pais?: string
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -462,6 +479,14 @@ export interface ResultadoTransmision {
   resultadoEUR: EuroDecimal
   /** Lotes consumidos, del más antiguo al más reciente. */
   consumos: ConsumoFifo[]
+  /**
+   * true si la cola no tenía lotes suficientes para cubrir la cantidad transmitida
+   * (venta/pago/pérdida sin saldo FIFO): la porción sin lote se imputa a coste 0 y
+   * el resultado queda inflado. Es un aviso, no un error (DOMINIO §4, validaciones).
+   */
+  saldoFifoInsuficiente?: boolean
+  /** Cantidad transmitida que quedó sin lote de coste (0 si la cola cubría todo). */
+  cantidadSinCoste?: CantidadDecimal
 }
 
 /** Totales de la cola FIFO de un activo. */
