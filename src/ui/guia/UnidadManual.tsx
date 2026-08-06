@@ -1,15 +1,15 @@
 /**
  * UnidadManual — recuadro «Unidad del manual» que se muestra en cada pantalla
- * (guía integrada, P8). Presenta el bloque del taller y una pista neutra, y deja
- * el marcador `{{TEXTO-MANUAL}}` donde el responsable pegará el literal de la unidad
- * (Regla de oro 5: la app no redacta los textos del manual).
+ * (guía integrada, P8). Presenta el bloque del taller, una pista neutra y el texto
+ * literal de la unidad del manual (Regla de oro 5: la app no redacta esos textos, los
+ * copia literalmente; ver `src/ui/guia/unidades.ts`).
  *
  * Es plegable y recuerda su estado en localStorage por pantalla, para no estorbar
  * al usuario intensivo una vez leído.
  */
 import { useState } from 'react'
 import type { Ruta } from '../shell/rutas'
-import { MARCADOR_MANUAL, UNIDADES_MANUAL } from './unidades'
+import { UNIDADES_MANUAL } from './unidades'
 
 const CLAVE_LS = 'hesperides.unidad-manual.plegado'
 
@@ -63,14 +63,14 @@ export function UnidadManual({ ruta }: { ruta: Ruta }) {
       </button>
       {!plegado && (
         <div className="space-y-2 px-3 pb-3 text-amber-900/90 dark:text-amber-100/80">
-          <p>{unidad.pista}</p>
-          <p className="text-xs">
-            El texto de esta unidad se completará con el literal del manual:{' '}
-            <code className="rounded border border-dashed border-yellow-500 bg-yellow-100 px-1 text-[11px] text-yellow-900 dark:border-yellow-700/70 dark:bg-yellow-900/30 dark:text-yellow-200">
-              {MARCADOR_MANUAL}
-            </code>{' '}
-            <span className="text-amber-700/70 dark:text-amber-300/60">({unidad.clave})</span>
-          </p>
+          <p className="font-medium">{unidad.pista}</p>
+          {unidad.texto ? (
+            <p className="text-[13px] leading-relaxed">{unidad.texto}</p>
+          ) : (
+            <p className="text-xs text-amber-700/70 dark:text-amber-300/60">
+              Texto de la unidad pendiente del literal del manual ({unidad.clave}).
+            </p>
+          )}
         </div>
       )}
     </aside>

@@ -5,16 +5,16 @@
  * cajones con su desglose y totales, el mapa a casillas, el aviso 721 y el disclaimer
  * permanente. Sin red ni dependencias (local-first, Regla 3). Presentación pura.
  *
- * Regla de oro 5: los textos con calificación fiscal se muestran como `{{TEXTO-MANUAL}}`
- * (el responsable los pega). El disclaimer de carácter orientativo sí se redacta (es
- * metodológico, no una calificación).
+ * Regla de oro 5: los textos con calificación fiscal son literales del manual del taller
+ * (viven en `engine/fiscal`); aquí solo se muestran. El disclaimer de carácter orientativo sí
+ * se redacta (es metodológico, no una calificación).
  */
 import type {
   ResumenFiscal,
   BloqueIngresos,
   ConceptoFiscal,
 } from '../../engine/fiscal'
-import { CONCEPTOS_FISCALES, UMBRAL_721_EUR } from '../../engine/fiscal'
+import { CONCEPTOS_FISCALES, UMBRAL_721_EUR, AVISO_721, NOTA_172_173, MARCADOR_TEXTO } from '../../engine/fiscal'
 import type { MapaCasilla } from '../../data/casillas-2024'
 import type { RefUbicacion } from '../../engine/types'
 import { fmtDecimal, fmtEuro, fmtFecha, fmtFechaHora, fmtUbicacion } from '../formato'
@@ -34,9 +34,15 @@ function ahoraLegible(): string {
   return fmtFechaHora(new Date().toISOString().slice(0, 19))
 }
 
-/** Marcador de texto manual resaltado (para que se vea que falta el literal). */
+/** Marcador de texto manual resaltado (solo para ranuras aún sin literal, p. ej. casillas). */
 function marcador(): string {
-  return '<span class="marcador">{{TEXTO-MANUAL}}</span>'
+  return `<span class="marcador">${MARCADOR_TEXTO}</span>`
+}
+
+/** Línea de calificación fiscal de un cajón: explicación + fecha de criterio (literales). */
+function calificacionHtml(concepto: ConceptoFiscal): string {
+  const c = CONCEPTOS_FISCALES[concepto]
+  return `<p class="expl"><strong>Calificación fiscal:</strong> ${esc(c.explicacion)} <strong>Fecha de criterio:</strong> ${esc(c.fechaCriterio)}</p>`
 }
 
 /** Etiqueta del estado probatorio. */
@@ -77,7 +83,7 @@ function bloqueIngresosHtml(
       : '<tr><td colspan="5" class="vacio">Sin operaciones en el ejercicio.</td></tr>'
   return `<section class="cajon">
     <h2>${esc(titulo)}</h2>
-    <p class="expl">Calificación fiscal: ${marcador()} · Fecha de criterio: ${marcador()}</p>
+    ${calificacionHtml(concepto)}
     ${casillaDe(concepto, casillas)}
     <table>
       <thead><tr><th>Apunte</th><th>Fecha</th><th>Activo</th><th class="num">Cantidad</th><th class="num">Importe</th></tr></thead>
@@ -148,7 +154,7 @@ export function construirInformeFiscalHtml(
 
   const ahorroHtml = `<section class="cajon">
     <h2>${esc(CONCEPTOS_FISCALES.ahorro.etiqueta)} · ${esc(CONCEPTOS_FISCALES.ahorro.baseImponible)}</h2>
-    <p class="expl">Calificación fiscal: ${marcador()} · Fecha de criterio: ${marcador()}</p>
+    ${calificacionHtml('ahorro')}
     ${casillaDe('ahorro', casillas)}
     <table>
       <thead><tr><th>Apunte</th><th>Fecha</th><th>Tipo</th><th>Activo</th><th class="num">Valor neto</th><th class="num">Coste FIFO</th><th class="num">Resultado</th></tr></thead>
@@ -190,9 +196,9 @@ export function construirInformeFiscalHtml(
 
   const perdidasHtml = `<section class="cajon">
     <h2>${esc(CONCEPTOS_FISCALES.perdidas.etiqueta)}</h2>
-    <p class="expl">Calificación fiscal: ${marcador()} · Fecha de criterio: ${marcador()}</p>
+    ${calificacionHtml('perdidas')}
     ${casillaDe('perdidas', casillas)}
-    <p class="expl"><strong>Deducibilidad condicionada</strong> a requisitos y prueba (dualidad DGT): ${marcador()}. Revisa el estado probatorio de cada pérdida en el Archivo.</p>
+    <p class="expl"><strong>Deducibilidad condicionada</strong> a requisitos y prueba (dualidad DGT). Revisa el estado probatorio de cada pérdida en el Archivo.</p>
     <table>
       <thead><tr><th>Apunte</th><th>Fecha</th><th>Activo</th><th class="num">Cantidad</th><th class="num">Coste FIFO</th><th class="num">Resultado</th><th>Prueba</th></tr></thead>
       <tbody>${filasPerdidas}</tbody>
@@ -217,7 +223,7 @@ export function construirInformeFiscalHtml(
   const aviso721Html = avisoExtranjero.aplica
     ? `<div class="aviso">
         <h2>Aviso informativo · Modelo 721 (saldos en el extranjero)</h2>
-        <p class="expl">${marcador()}</p>
+        <p class="expl">${esc(AVISO_721)}</p>
         <p>Saldos a 31/12/${resumen.ejercicio} en ubicaciones marcadas como extranjeras.
           Umbral informativo: ${fmtEuro(String(avisoExtranjero.umbralEUR ?? UMBRAL_721_EUR))}.
           ${
@@ -237,7 +243,7 @@ export function construirInformeFiscalHtml(
 
   const nota172Html = `<div class="aviso">
     <h2>Nota informativa · Modelos 172 / 173</h2>
-    <p class="expl">${marcador()}</p>
+    <p class="expl">${esc(NOTA_172_173)}</p>
   </div>`
 
   return `<!doctype html>
@@ -272,10 +278,10 @@ export function construirInformeFiscalHtml(
   <div class="disclaimer">
     Resumen ORIENTATIVO de carácter docente generado por el Libro Hespérides a partir de los
     apuntes y justificantes del alumno. NO es asesoramiento fiscal ni una declaración, ni
-    sustituye la revisión de un profesional. Las calificaciones fiscales, fechas de criterio y
-    casillas marcadas <span class="marcador">{{TEXTO-MANUAL}}</span> deben completarse con los
-    literales del manual del taller antes de darlas por válidas. Los avisos 721 y 172/173 son
-    informativos y nunca determinan una obligación.
+    sustituye la revisión de un profesional. Las calificaciones y fechas de criterio son literales
+    del manual del taller; los números de casilla cambian cada campaña (verifícalos en el Manual
+    práctico de Renta del ejercicio). Los avisos 721 y 172/173 son informativos y nunca determinan
+    una obligación.
   </div>
 </body>
 </html>`

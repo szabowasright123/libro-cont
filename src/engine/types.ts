@@ -351,16 +351,17 @@ export interface Apunte {
 
 /**
  * Carpetas convencionales del Archivo probatorio. Prefijo numérico estable para
- * mantener el orden del expediente.
+ * mantener el orden del expediente. Seis carpetas del manual [MT U3.3] (01–06) más dos
+ * de la app (07-perdidas-y-donaciones y 99-otros). Ver `RUTA_POR_TIPO` en archivo.ts.
  */
 export type RutaConvencional =
   | '01-adquisiciones'
   | '02-transferencias'
   | '03-transmisiones'
   | '04-rendimientos'
-  | '05-perdidas'
-  | '06-donaciones'
-  | '07-ajustes'
+  | '05-certificados'
+  | '06-etiquetas'
+  | '07-perdidas-y-donaciones'
   | '99-otros'
 
 /** Documento probatorio ligado a un apunte del Libro. */

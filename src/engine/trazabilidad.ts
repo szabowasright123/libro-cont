@@ -46,8 +46,8 @@ export type Origen = 'KYC' | 'NO_KYC'
 
 /**
  * Vía de evidencia de una ubicación: qué clase de documentación genera de forma natural la
- * vía por la que entran/salen activos. Textos DE PARTIDA con cita de unidad del manual y
- * marcador `TODO-REVISION` (Regla de oro 5: el responsable los fijará literalmente).
+ * vía por la que entran/salen activos. La `cita` es literal de la unidad del manual del taller
+ * (Regla de oro 5; validada a 2026-08-06).
  */
 export interface ViaEvidencia {
   /** Clave estable (se guarda en `Ubicacion.viaEvidencia`). */
@@ -58,14 +58,14 @@ export interface ViaEvidencia {
   readonly kycTipico: boolean
   /** Qué documentación genera esta vía (para la checklist probatoria). */
   readonly documentacion: string
-  /** Cita de la unidad/consulta del manual (TODO-REVISION: fijar literal). */
+  /** Cita de la unidad del manual del taller (literal, validado a 2026-08-06). */
   readonly cita: string
 }
 
 /**
- * VIAS_EVIDENCIA — catálogo de partida de vías de evidencia por ubicación. Cubre las vías
- * canónicas del Bloque 1. TODO-REVISION en cada cita: el responsable del taller las fijará
- * contra los manuales (unidad y, si procede, consulta DGT).
+ * VIAS_EVIDENCIA — catálogo de vías de evidencia por ubicación. Cubre las vías canónicas del
+ * Bloque 1. Las citas son literales de los manuales del taller (validadas a 2026-08-06, ver
+ * docs/TEXTOS_MANUAL_RANURAS.md §6).
  */
 export const VIAS_EVIDENCIA: readonly ViaEvidencia[] = [
   {
@@ -74,7 +74,7 @@ export const VIAS_EVIDENCIA: readonly ViaEvidencia[] = [
     kycTipico: true,
     documentacion:
       'Identidad verificada por el exchange, órdenes ejecutadas y extractos de operaciones y de fiat.',
-    cita: 'TODO-REVISION: Bloque 1, unidad de identificación y KYC en exchanges.',
+    cita: '[MT] Unidad 2, ap. 2, «La vía KYC: el exchange documenta e informa por ti».',
   },
   {
     clave: 'p2p-bancario',
@@ -82,7 +82,7 @@ export const VIAS_EVIDENCIA: readonly ViaEvidencia[] = [
     kycTipico: false,
     documentacion:
       'Justificante de la transferencia/Bizum al vendedor, captura del anuncio o chat con las condiciones y txid on-chain.',
-    cita: 'TODO-REVISION: Bloque 1, unidad de adquisiciones P2P sin KYC.',
+    cita: '[MT] Unidad 2, ap. 3.a, «Compra entre particulares (P2P)» (las cuatro piezas).',
   },
   {
     clave: 'mineria-propia',
@@ -90,7 +90,7 @@ export const VIAS_EVIDENCIA: readonly ViaEvidencia[] = [
     kycTipico: false,
     documentacion:
       'Liquidaciones del pool o recompensas de bloque, con fecha, cantidad y dirección de cobro propia.',
-    cita: 'TODO-REVISION: Bloque 1, unidad de minería (rendimiento de actividad económica).',
+    cita: '[MT] Unidad 2, ap. 3.c, «Minería» («la vía no-KYC por excelencia»).',
   },
   {
     clave: 'wallet-autocustodia',
@@ -98,7 +98,7 @@ export const VIAS_EVIDENCIA: readonly ViaEvidencia[] = [
     kycTipico: false,
     documentacion:
       'Prueba de titularidad de la dirección/wallet propia y txid de los movimientos entrantes y salientes.',
-    cita: 'TODO-REVISION: Bloque 1, unidad de autocustodia y titularidad de wallets.',
+    cita: '[MT] Unidad 3, ap. 1, «Autocustodia» (titularidad firmando mensajes; regla de no-mezcla, ap. 1.1).',
   },
   {
     clave: 'canal-lightning',
@@ -106,7 +106,7 @@ export const VIAS_EVIDENCIA: readonly ViaEvidencia[] = [
     kycTipico: false,
     documentacion:
       'Registro de apertura/cierre de canal, facturas (invoices) y liquidaciones on-chain de referencia.',
-    cita: 'TODO-REVISION: Bloque 1, unidad de canales Lightning.',
+    cita: '[MT] Unidad 3, ap. 1.3, «Lightning en el setup» (factura y preimage; el canal es una ubicación).',
   },
   {
     clave: 'banco-fiat',
@@ -114,14 +114,14 @@ export const VIAS_EVIDENCIA: readonly ViaEvidencia[] = [
     kycTipico: true,
     documentacion:
       'Extractos bancarios que acreditan los ingresos y retiradas de euros hacia/desde los exchanges.',
-    cita: 'TODO-REVISION: Bloque 1, unidad de trazabilidad del fiat.',
+    cita: '[MT] Unidad 2, ap. 5 (carga de la prueba, arts. 105-106 LGT) y Unidad 7, ap. 3, capa 2.ª («lo que el banco sabe»).',
   },
   {
     clave: 'otra',
     etiqueta: 'Otra vía',
     kycTipico: false,
     documentacion: 'Documentación específica de la vía (describir en las notas de evidencia).',
-    cita: 'TODO-REVISION: describir la vía y su soporte probatorio.',
+    cita: '[MT] Unidad 8, introducción: el método de las cuatro preguntas («¿qué evidencia deja, y en qué carpeta cae?»).',
   },
 ]
 

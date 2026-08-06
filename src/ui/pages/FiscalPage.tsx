@@ -6,8 +6,8 @@
  * (`data/casillas-AAAA`), los avisos informativos 721 y 172/173, y el disclaimer permanente.
  * Exporta el resumen a HTML imprimible y a CSV.
  *
- * Regla de oro 5: los textos con calificación fiscal se muestran como {{TEXTO-MANUAL}} (los
- * pega el responsable). El motor solo aporta números.
+ * Regla de oro 5: los textos con calificación fiscal son literales del manual del taller
+ * (viven en `engine/fiscal`); aquí solo se muestran. El motor solo aporta números.
  */
 import { useMemo, useState } from 'react'
 import type { SimboloActivo } from '../../engine/types'
@@ -15,6 +15,8 @@ import {
   calcularResumenFiscal,
   ejerciciosConDatos,
   CONCEPTOS_FISCALES,
+  AVISO_721,
+  NOTA_172_173,
   MARCADOR_TEXTO,
   type ConceptoFiscal,
   type ResumenFiscal,
@@ -129,8 +131,7 @@ export function FiscalPage() {
           <h1 className="text-2xl font-bold tracking-tight">Fiscal</h1>
           <p className="text-sm text-slate-500">
             Resumen <strong>orientativo</strong> del ejercicio: ahorro, RCM, actividad económica,
-            base general y pérdidas. Las calificaciones fiscales las fija el responsable
-            (<Marcador />).
+            base general y pérdidas. Las calificaciones fiscales son literales del manual del taller.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -154,9 +155,10 @@ export function FiscalPage() {
       {/* Disclaimer permanente y visible (Regla 5, punto 4). */}
       <Banner tono="info">
         <strong>Resumen orientativo docente.</strong> No es asesoramiento fiscal ni una
-        declaración, ni sustituye la revisión de un profesional. Las calificaciones, fechas de
-        criterio y casillas marcadas <Marcador /> deben completarse con los literales del manual
-        del taller. Los avisos 721 y 172/173 son informativos y nunca determinan una obligación.
+        declaración, ni sustituye la revisión de un profesional. Las calificaciones y fechas de
+        criterio son literales del manual del taller; los números de casilla cambian cada campaña
+        (verifícalos en el Manual práctico de Renta del ejercicio). Los avisos 721 y 172/173 son
+        informativos y nunca determinan una obligación.
       </Banner>
 
       {error && <Banner tono="error">No se pudo calcular el resumen fiscal: {error}</Banner>}
@@ -240,9 +242,10 @@ export function FiscalPage() {
           {/* Nota 172/173. */}
           <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
             <h2 className="text-lg font-semibold">Nota informativa · Modelos 172 / 173</h2>
-            <p className="text-sm text-slate-500">
-              <Marcador /> — texto informativo del manual. Recordatorio: son declaraciones
-              informativas de terceros (exchanges); esta app solo lo menciona como referencia.
+            <p className="text-sm leading-relaxed text-slate-500">{NOTA_172_173}</p>
+            <p className="text-xs text-slate-400">
+              Recordatorio: son declaraciones informativas de terceros (proveedores establecidos en
+              España); esta app solo lo menciona como referencia.
             </p>
           </section>
         </>
@@ -275,11 +278,15 @@ function CasillaLinea({ concepto, casillas }: { concepto: ConceptoFiscal; casill
   )
 }
 
-/** Línea de calificación fiscal (siempre {{TEXTO-MANUAL}} en este módulo). */
-function CalificacionLinea() {
+/** Línea de calificación fiscal: literal del manual + fecha de criterio del cajón. */
+function CalificacionLinea({ concepto }: { concepto: ConceptoFiscal }) {
+  const c = CONCEPTOS_FISCALES[concepto]
   return (
-    <p className="text-xs text-slate-500">
-      Calificación fiscal: <Marcador /> · Fecha de criterio: <Marcador />
+    <p className="text-xs leading-relaxed text-slate-500">
+      <span className="font-medium text-slate-600 dark:text-slate-300">Calificación fiscal:</span>{' '}
+      {c.explicacion}{' '}
+      <span className="font-medium text-slate-600 dark:text-slate-300">Fecha de criterio:</span>{' '}
+      {c.fechaCriterio}
     </p>
   )
 }
@@ -293,7 +300,7 @@ function CajonAhorro({ resumen, casillas }: { resumen: ResumenFiscal; casillas: 
         {CONCEPTOS_FISCALES.ahorro.etiqueta}{' '}
         <span className="text-sm font-normal text-slate-400">· {CONCEPTOS_FISCALES.ahorro.baseImponible}</span>
       </h2>
-      <CalificacionLinea />
+      <CalificacionLinea concepto="ahorro" />
       <CasillaLinea concepto="ahorro" casillas={casillas} />
       <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
         <table className="w-full border-collapse text-sm">
@@ -374,7 +381,7 @@ function CajonIngresos({
         {titulo}{' '}
         <span className="text-sm font-normal text-slate-400">· {CONCEPTOS_FISCALES[concepto].baseImponible}</span>
       </h2>
-      <CalificacionLinea />
+      <CalificacionLinea concepto={concepto} />
       <CasillaLinea concepto={concepto} casillas={casillas} />
       {bloque.hayIncompletas && (
         <Banner tono="info">Alguna operación no traía contravalor EUR: revisa el diario (importe tomado como 0).</Banner>
@@ -427,12 +434,12 @@ function CajonPerdidas({ resumen, casillas }: { resumen: ResumenFiscal; casillas
   return (
     <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
       <h2 className="text-lg font-semibold">{CONCEPTOS_FISCALES.perdidas.etiqueta}</h2>
-      <CalificacionLinea />
+      <CalificacionLinea concepto="perdidas" />
       <CasillaLinea concepto="perdidas" casillas={casillas} />
       <Banner tono="info">
-        <strong>Deducibilidad condicionada</strong> a requisitos y prueba (dualidad DGT): <Marcador />.
-        Cada pérdida muestra su estado probatorio del Archivo; sin expediente completo, su cómputo
-        es dudoso.
+        <strong>Deducibilidad condicionada</strong> a requisitos y prueba (dualidad DGT). Cada
+        pérdida muestra su estado probatorio del Archivo; sin expediente completo, su cómputo es
+        dudoso.
       </Banner>
       <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
         <table className="w-full border-collapse text-sm">
@@ -518,10 +525,11 @@ function Aviso721({
   return (
     <section className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
       <h2 className="text-lg font-semibold">Aviso informativo · Modelo 721 (saldos en el extranjero)</h2>
-      <p className="text-sm text-slate-500">
-        <Marcador /> — Aviso, nunca cálculo de obligación. Saldos a 31/12/{resumen.ejercicio} en
-        ubicaciones marcadas como <strong>extranjeras</strong> (márcalas en «Ubicaciones»). Umbral
-        informativo: {fmtEuro(String(aviso.umbralEUR))}.
+      <p className="text-sm leading-relaxed text-slate-500">{AVISO_721}</p>
+      <p className="text-xs text-slate-400">
+        Aviso, nunca cálculo de obligación. Saldos a 31/12/{resumen.ejercicio} en ubicaciones
+        marcadas como <strong>extranjeras</strong> (márcalas en «Ubicaciones»). Umbral informativo:{' '}
+        {fmtEuro(String(aviso.umbralEUR))}.
       </p>
 
       {!aviso.aplica ? (

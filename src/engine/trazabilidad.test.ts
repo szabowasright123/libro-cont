@@ -200,12 +200,15 @@ describe('trazabilidad · sello de origen del apunte', () => {
 })
 
 describe('trazabilidad · catálogo de vías de evidencia', () => {
-  it('todas las vías tienen clave, etiqueta, documentación y cita (TODO-REVISION)', () => {
+  it('todas las vías tienen clave, etiqueta, documentación y cita literal del manual', () => {
     for (const v of VIAS_EVIDENCIA) {
       expect(v.clave).toBeTruthy()
       expect(v.etiqueta).toBeTruthy()
       expect(v.documentacion).toBeTruthy()
-      expect(v.cita).toContain('TODO-REVISION')
+      expect(v.cita).toBeTruthy()
+      expect(v.cita).not.toContain('TODO-REVISION')
+      // Las citas del manual del taller llevan la referencia [MT]/[MF].
+      expect(v.cita).toMatch(/\[M[TF]\]/)
     }
   })
 

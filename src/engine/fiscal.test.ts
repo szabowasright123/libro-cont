@@ -14,6 +14,8 @@ import {
   RANURAS_TEXTO_MANUAL,
   MARCADOR_TEXTO,
   CONCEPTOS_FISCALES,
+  AVISO_721,
+  NOTA_172_173,
   UMBRAL_721_EUR,
 } from './fiscal'
 import { transmisionesDelDiario } from './fifo'
@@ -89,9 +91,9 @@ describe('fiscal · estado probatorio de las pérdidas', () => {
 
   it('con el expediente completo (denuncia + atestado + txid), sale «completo»', () => {
     const justificantes: Justificante[] = [
-      { id: 'j1', apunteId: '2024-017', rutaConvencional: '05-perdidas', tipoDocumento: 'denuncia' },
-      { id: 'j2', apunteId: '2024-017', rutaConvencional: '05-perdidas', tipoDocumento: 'expediente-atestado' },
-      { id: 'j3', apunteId: '2024-017', rutaConvencional: '05-perdidas', tipoDocumento: 'txid-perdida' },
+      { id: 'j1', apunteId: '2024-017', rutaConvencional: '07-perdidas-y-donaciones', tipoDocumento: 'denuncia' },
+      { id: 'j2', apunteId: '2024-017', rutaConvencional: '07-perdidas-y-donaciones', tipoDocumento: 'expediente-atestado' },
+      { id: 'j3', apunteId: '2024-017', rutaConvencional: '07-perdidas-y-donaciones', tipoDocumento: 'txid-perdida' },
     ]
     const r = calcularResumenFiscal(APUNTES_MINICASO, UBICACIONES_MINICASO, justificantes, 2024)
     expect(r.perdidas.items[0]!.estadoProbatorio).toBe('completo')
@@ -192,11 +194,19 @@ describe('fiscal · aviso 721 (saldo en el extranjero)', () => {
 })
 
 describe('fiscal · textos manuales (Regla de oro 5)', () => {
-  it('todas las ranuras de concepto valen el marcador {{TEXTO-MANUAL}}', () => {
+  it('todas las ranuras de concepto llevan el literal del manual (ya no el marcador)', () => {
     for (const c of Object.values(CONCEPTOS_FISCALES)) {
-      expect(c.explicacion).toBe(MARCADOR_TEXTO)
-      expect(c.fechaCriterio).toBe(MARCADOR_TEXTO)
+      expect(c.explicacion).not.toBe(MARCADOR_TEXTO)
+      expect(c.fechaCriterio).not.toBe(MARCADOR_TEXTO)
+      expect(c.explicacion.length).toBeGreaterThan(0)
+      // La fecha de criterio lleva la marca de verificación del responsable.
+      expect(c.fechaCriterio).toContain('Verificado a 6-8-2026')
     }
+  })
+
+  it('los avisos 721 y 172/173 llevan su literal', () => {
+    expect(AVISO_721).toContain('modelo 721')
+    expect(NOTA_172_173).toContain('172')
   })
 
   it('el catálogo de ranuras cubre los 5 cajones (×2) + 721 + 172/173', () => {

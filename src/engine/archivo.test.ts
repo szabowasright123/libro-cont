@@ -11,6 +11,8 @@ import type { Apunte, Justificante } from './types'
 import {
   CHECKLIST_PROBATORIA,
   RUTA_POR_TIPO,
+  CARPETAS_ARCHIVO,
+  CARPETAS_SIN_APUNTE,
   requisitosAplicables,
   estadoProbatorioApunte,
   detectarHuerfanos,
@@ -56,6 +58,34 @@ describe('checklist probatoria', () => {
   it('PÉRDIDA es el tipo de máxima exigencia y exige denuncia', () => {
     expect(CHECKLIST_PROBATORIA.PERDIDA.exigencia).toBe(5)
     expect(CHECKLIST_PROBATORIA.PERDIDA.requisitos.map((r) => r.clave)).toContain('denuncia')
+  })
+})
+
+describe('convención de carpetas (VALIDADA 2026-08-06)', () => {
+  it('mapea PÉRDIDA y DONACIÓN a 07-perdidas-y-donaciones y AJUSTE a 99-otros', () => {
+    expect(RUTA_POR_TIPO.PERDIDA).toBe('07-perdidas-y-donaciones')
+    expect(RUTA_POR_TIPO.DONACION).toBe('07-perdidas-y-donaciones')
+    expect(RUTA_POR_TIPO.AJUSTE).toBe('99-otros')
+  })
+
+  it('las seis carpetas del manual + 07 + 99 están en el explorador', () => {
+    const rutas = CARPETAS_ARCHIVO.map((c) => c.ruta)
+    expect(rutas).toEqual([
+      '01-adquisiciones',
+      '02-transferencias',
+      '03-transmisiones',
+      '04-rendimientos',
+      '05-certificados',
+      '06-etiquetas',
+      '07-perdidas-y-donaciones',
+      '99-otros',
+    ])
+  })
+
+  it('ningún tipo se archiva por defecto en 05-certificados ni 06-etiquetas', () => {
+    for (const ruta of Object.values(RUTA_POR_TIPO)) {
+      expect(CARPETAS_SIN_APUNTE).not.toContain(ruta)
+    }
   })
 })
 
@@ -116,6 +146,20 @@ describe('detección de huérfanos', () => {
     // Todos menos el 2024-002 quedan sin justificante.
     expect(apuntesSinJustificante).toHaveLength(APUNTES_MINICASO.length - 1)
     expect(apuntesSinJustificante.some((a) => a.id === '2024-002')).toBe(false)
+  })
+
+  it('un certificado o etiqueta sin apunte NO cuenta como huérfano', () => {
+    const certificado = just('9999-999', 'otros', { rutaConvencional: '05-certificados' })
+    const etiqueta = just('9999-998', 'otros', { rutaConvencional: '06-etiquetas' })
+    const sueltoNormal = just('9999-997', 'otros', { rutaConvencional: '99-otros' })
+    const { justificantesSinApunte } = detectarHuerfanos(APUNTES_MINICASO, [
+      certificado,
+      etiqueta,
+      sueltoNormal,
+    ])
+    // Solo el de 99-otros (sin apunte) es huérfano; certificados y etiquetas están exentos.
+    expect(justificantesSinApunte.map((j) => j.apunteId)).toEqual(['9999-997'])
+    expect(CARPETAS_SIN_APUNTE).toEqual(['05-certificados', '06-etiquetas'])
   })
 })
 

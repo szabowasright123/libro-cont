@@ -90,7 +90,11 @@ export function resumenFiscalACsv(
   }
 
   lineas.push('')
-  lineas.push(fila(['Resumen orientativo docente. No es asesoramiento fiscal ni declaración. Textos {{TEXTO-MANUAL}} pendientes de literal del manual.']))
+  lineas.push(
+    fila([
+      'Resumen orientativo docente. No es asesoramiento fiscal ni declaración. Calificaciones y fechas de criterio: literales del manual del taller; casillas: verificar en el Manual práctico de Renta del ejercicio.',
+    ]),
+  )
 
   // BOM UTF-8 para que Excel respete los acentos.
   return '﻿' + lineas.join('\r\n')

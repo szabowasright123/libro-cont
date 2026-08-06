@@ -103,6 +103,32 @@ export class LibroDB extends Dexie {
         })
         await tx.table('justificantes').bulkAdd(migrados)
       })
+
+    // ── Esquema v5 (textos del manual): nueva convención de carpetas del Archivo
+    //    (VALIDADA 2026-08-06, ver docs/TEXTOS_MANUAL_RANURAS.md §5). Las carpetas antiguas
+    //    05-perdidas / 06-donaciones / 07-ajustes desaparecen; sus justificantes se reasignan
+    //    a las nuevas rutas (PÉRDIDA y DONACIÓN → 07-perdidas-y-donaciones; AJUSTE → 99-otros).
+    //    05-certificados y 06-etiquetas quedan libres para documentos de ubicación/ejercicio.
+    this.version(5)
+      .stores({
+        apuntes: 'uid, id, fechaHora, tipo, activoEntrada, activoSalida',
+        ubicaciones: 'id, nombre, kyc',
+        justificantes: 'id, apunteUid, rutaConvencional',
+        activos: 'simbolo',
+        parametros: 'clave',
+      })
+      .upgrade(async (tx) => {
+        const REASIGNAR: Record<string, string> = {
+          '05-perdidas': '07-perdidas-y-donaciones',
+          '06-donaciones': '07-perdidas-y-donaciones',
+          '07-ajustes': '99-otros',
+        }
+        const previos = await tx.table('justificantes').toArray()
+        for (const j of previos) {
+          const nueva = REASIGNAR[j.rutaConvencional as string]
+          if (nueva) await tx.table('justificantes').update(j.id, { rutaConvencional: nueva })
+        }
+      })
   }
 }
 

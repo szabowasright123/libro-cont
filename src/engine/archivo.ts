@@ -11,10 +11,10 @@
  * Dexie, sin browser APIs. El hash SHA-256, los Blob y la persistencia viven en la capa
  * de datos/UI. Aquí solo dominio.
  *
- * Regla de oro 5 (textos fiscales/probatorios): los textos de la checklist son de
- * partida y llevan marcador `TODO-REVISION` para que el responsable del taller los fije
- * literalmente contra los manuales. NO son calificaciones fiscales inventadas: describen
- * qué documento aporta la prueba, que es criterio metodológico del Bloque 1.
+ * Regla de oro 5 (textos fiscales/probatorios): los textos de la checklist son literales
+ * de los manuales del taller (validados a 2026-08-06, ver docs/TEXTOS_MANUAL_RANURAS.md §5).
+ * NO son calificaciones fiscales inventadas: describen qué documento aporta la prueba, que es
+ * criterio metodológico del Bloque 1.
  */
 
 import type {
@@ -32,17 +32,28 @@ import { UBICACION_EXTERIOR } from './types'
 // 1. Carpetas convencionales del expediente
 // ────────────────────────────────────────────────────────────────────────────
 
-/** Carpetas convencionales del Archivo, en orden de expediente, con etiqueta legible. */
+/**
+ * Carpetas convencionales del Archivo, en orden de expediente, con etiqueta legible.
+ * Convención VALIDADA (2026-08-06): las seis carpetas del manual [MT U3.3] (01–06) más
+ * `07-perdidas-y-donaciones` y `99-otros` como extensión de la app.
+ */
 export const CARPETAS_ARCHIVO: readonly { ruta: RutaConvencional; etiqueta: string }[] = [
   { ruta: '01-adquisiciones', etiqueta: 'Adquisiciones' },
   { ruta: '02-transferencias', etiqueta: 'Transferencias' },
   { ruta: '03-transmisiones', etiqueta: 'Transmisiones' },
   { ruta: '04-rendimientos', etiqueta: 'Rendimientos' },
-  { ruta: '05-perdidas', etiqueta: 'Pérdidas' },
-  { ruta: '06-donaciones', etiqueta: 'Donaciones' },
-  { ruta: '07-ajustes', etiqueta: 'Ajustes' },
+  { ruta: '05-certificados', etiqueta: 'Certificados' },
+  { ruta: '06-etiquetas', etiqueta: 'Etiquetas' },
+  { ruta: '07-perdidas-y-donaciones', etiqueta: 'Pérdidas y donaciones' },
   { ruta: '99-otros', etiqueta: 'Otros' },
 ]
+
+/**
+ * Carpetas que admiten justificantes SIN apunte asociado (documentos de ubicación o de
+ * ejercicio: certificados anuales del exchange, exportaciones CSV y etiquetas BIP-329). No se
+ * cuentan como huérfanos [MT U3.3].
+ */
+export const CARPETAS_SIN_APUNTE: readonly RutaConvencional[] = ['05-certificados', '06-etiquetas']
 
 /** Etiqueta legible de una carpeta convencional. */
 export const ETIQUETA_CARPETA: Readonly<Record<RutaConvencional, string>> = Object.freeze(
@@ -54,9 +65,10 @@ export const ETIQUETA_CARPETA: Readonly<Record<RutaConvencional, string>> = Obje
 
 /**
  * Carpeta convencional por defecto para un tipo de operación. Es una SUGERENCIA para el
- * formulario: el alumno puede archivar un justificante en otra carpeta. TODO-REVISION:
- * confirmar la taxonomía con el responsable del taller (p. ej. si AIRDROP va a
- * adquisiciones o a rendimientos).
+ * formulario: el alumno puede archivar un justificante en otra carpeta. Mapeo VALIDADO
+ * (2026-08-06) según [MT U3.3] y la extensión de la app: ventas, permutas y pagos a
+ * `03-transmisiones`; rendimientos, minería y airdrops a `04-rendimientos`; PÉRDIDA y DONACIÓN
+ * a `07-perdidas-y-donaciones`; AJUSTE/RECTIFICACIÓN a `99-otros`.
  */
 export const RUTA_POR_TIPO: Readonly<Record<TipoOperacion, RutaConvencional>> = {
   COMPRA: '01-adquisiciones',
@@ -67,13 +79,13 @@ export const RUTA_POR_TIPO: Readonly<Record<TipoOperacion, RutaConvencional>> = 
   MINERIA: '04-rendimientos',
   AIRDROP: '04-rendimientos',
   PAGO: '03-transmisiones',
-  PERDIDA: '05-perdidas',
-  DONACION: '06-donaciones',
-  AJUSTE: '07-ajustes',
+  PERDIDA: '07-perdidas-y-donaciones',
+  DONACION: '07-perdidas-y-donaciones',
+  AJUSTE: '99-otros',
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 2. Checklist probatoria por tipo (TODO-REVISION en cada texto)
+// 2. Checklist probatoria por tipo (literales del manual, §5)
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -84,9 +96,9 @@ export const RUTA_POR_TIPO: Readonly<Record<TipoOperacion, RutaConvencional>> = 
 export interface RequisitoProbatorio {
   /** Identificador estable del documento (casa con `tipoDocumento`). */
   readonly clave: string
-  /** Nombre del documento a aportar (TODO-REVISION: fijar literal del manual). */
+  /** Nombre del documento a aportar. */
   readonly documento: string
-  /** Aclaración de qué prueba y por qué (TODO-REVISION). */
+  /** Aclaración de qué prueba y por qué (literal del manual, con su cita). */
   readonly detalle: string
   /** El requisito solo aplica si la adquisición fue en ubicación CON KYC. */
   readonly soloKyc?: boolean
@@ -101,16 +113,17 @@ export interface ChecklistTipo {
   readonly tesis: string
   /**
    * Nivel de exigencia probatoria (1..5). Ordena los huecos del informe: 5 = máxima
-   * (PÉRDIDA), 4 = alta (DONACIÓN). TODO-REVISION: calibrar con el responsable.
+   * (PÉRDIDA), 4 = alta (DONACIÓN).
    */
   readonly exigencia: number
   readonly requisitos: readonly RequisitoProbatorio[]
 }
 
 /**
- * CHECKLIST_PROBATORIA — qué documentos exige el manual para cada tipo. Textos DE PARTIDA
- * (TODO-REVISION): el responsable del taller los fijará literalmente. Clave metodológica
- * en PÉRDIDA (denuncia + expediente) y en adquisiciones no-KYC (pago + anuncio + txid).
+ * CHECKLIST_PROBATORIA — qué documentos exige el manual para cada tipo. Textos literales de
+ * los manuales del taller (validados a 2026-08-06, §5), con su cita al final. Clave
+ * metodológica en PÉRDIDA (denuncia + expediente) y en adquisiciones no-KYC (pago + anuncio +
+ * txid).
  */
 export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>> = {
   COMPRA: {
@@ -121,31 +134,36 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'orden-ejecucion',
         documento: 'Orden de compra / justificante de ejecución',
-        detalle: 'TODO-REVISION: orden ejecutada del exchange KYC (fecha, cantidad, precio, comisión).',
+        detalle:
+          '«Histórico completo de órdenes con fecha, hora, contravalor en euros y comisiones» del CASP; exportar periódicamente, «como mínimo, al cierre de cada ejercicio» — si la plataforma cierra, «la prueba desaparece con ella». [MT U2.2]',
         soloKyc: true,
       },
       {
         clave: 'extracto-exchange',
         documento: 'Extracto o histórico del exchange',
-        detalle: 'TODO-REVISION: extracto que muestre el cargo en EUR y el abono en cripto.',
+        detalle:
+          'Extracto del CASP con el cargo en EUR y el abono en cripto (el CASP «fabrica evidencia de calidad de forma automática»). [MT U2.2]',
         soloKyc: true,
       },
       {
         clave: 'justificante-pago',
         documento: 'Justificante de pago (transferencia / Bizum)',
-        detalle: 'TODO-REVISION: prueba del pago al vendedor en operación no-KYC (P2P).',
+        detalle:
+          'Justificante del pago al vendedor (transferencia, Bizum o efectivo documentado). Una de las «cuatro piezas» del P2P. [MT U2.3.a]',
         soloNoKyc: true,
       },
       {
         clave: 'captura-anuncio',
         documento: 'Captura del anuncio / acuerdo P2P',
-        detalle: 'TODO-REVISION: anuncio o chat con las condiciones acordadas (precio, cantidad).',
+        detalle:
+          '«La evidencia disponible es la que las partes fabriquen mediante algún tipo de acuerdo (aunque sea un chat: cantidad, precio y fecha)». [MT U2.3.a]',
         soloNoKyc: true,
       },
       {
         clave: 'txid-entrada',
         documento: 'txid / hash de la transacción on-chain',
-        detalle: 'TODO-REVISION: identificador de la transacción que acredita la recepción de la cripto.',
+        detalle:
+          '«El txid de la recepción y la cotización del día guardada de una fuente verificable». [MT U2.3.a]',
         soloNoKyc: true,
       },
     ],
@@ -158,12 +176,13 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'orden-ejecucion',
         documento: 'Orden de venta / justificante de ejecución',
-        detalle: 'TODO-REVISION: orden ejecutada con cantidad, precio y comisión.',
+        detalle:
+          'Orden ejecutada con cantidad, precio y comisión (carpeta de transmisiones: «orden ejecutada, contravalor, comisión»). [MT U3.3]',
       },
       {
         clave: 'extracto-exchange',
         documento: 'Extracto del exchange / abono de fiat',
-        detalle: 'TODO-REVISION: extracto que muestre el abono en EUR de la venta.',
+        detalle: 'Extracto con el abono en EUR de la venta. [MT U2.2]',
       },
     ],
   },
@@ -175,17 +194,20 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'orden-permuta',
         documento: 'Orden / comprobante de la permuta (swap)',
-        detalle: 'TODO-REVISION: comprobante del intercambio cripto-cripto con ambas patas.',
+        detalle:
+          'Comprobante del intercambio con ambas patas; el registro anota el contravalor EUR de la operación con su fuente. [MT U3.3 y U4 principio 5]',
       },
       {
         clave: 'valor-mercado',
         documento: 'Prueba del valor de mercado en EUR',
-        detalle: 'TODO-REVISION: cotización de referencia a la fecha (fuente y captura) del activo permutado.',
+        detalle:
+          '«Contravalor en euros en toda frontera: […] se anota su contravalor en EUR a esa fecha, con la fuente de la cotización». [MT U4 principio 5]',
       },
       {
         clave: 'txid-permuta',
         documento: 'txid / hash de la operación',
-        detalle: 'TODO-REVISION: identificador on-chain o de la DEX que acredita el swap.',
+        detalle:
+          'Txid o identificador de la operación (DEX/exchange) que acredita el intercambio. [MT U2.3.a por analogía]',
       },
     ],
   },
@@ -197,12 +219,14 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'txid-transferencia',
         documento: 'txid / hash del envío',
-        detalle: 'TODO-REVISION: identificador on-chain del movimiento entre ubicaciones propias.',
+        detalle:
+          '«Txids y capturas de los movimientos entre ubicaciones propias, con sus comisiones de red». [MT U3.3, carpeta 02]',
       },
       {
         clave: 'titularidad-destino',
         documento: 'Prueba de titularidad de la ubicación destino',
-        detalle: 'TODO-REVISION: captura de la dirección/wallet propia de destino.',
+        detalle:
+          'Acreditación de que el destino es propio: primera dirección de recepción asociada al titular; la titularidad puede demostrarse «firmando mensajes». [MT U2.4 y U3.1]',
       },
     ],
   },
@@ -214,12 +238,14 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'liquidacion-rendimiento',
         documento: 'Liquidación / histórico de recompensas',
-        detalle: 'TODO-REVISION: extracto de staking/lending con fecha, cantidad y activo.',
+        detalle:
+          '«Staking, intereses, recompensas: fecha y valor al percibirse» (carpeta 04). [MT U3.3]',
       },
       {
         clave: 'valor-mercado',
         documento: 'Prueba del valor de mercado en EUR',
-        detalle: 'TODO-REVISION: cotización a la fecha de cada abono (RCM art. 25.2 LIRPF).',
+        detalle:
+          'Contravalor del día al acreditarse en monedero disponible (imputación: V0612-26). [MT U8.1]',
       },
     ],
   },
@@ -231,12 +257,13 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'liquidacion-pool',
         documento: 'Liquidación del pool / recompensas de bloque',
-        detalle: 'TODO-REVISION: histórico de payouts del pool con fecha y cantidad.',
+        detalle:
+          '«Informes del pool con las recompensas y sus fechas»; facturas de equipos y electricidad («que además serán gasto deducible»). [MT U2.3.c]',
       },
       {
         clave: 'valor-mercado',
         documento: 'Prueba del valor de mercado en EUR',
-        detalle: 'TODO-REVISION: cotización a la fecha del abono (rendimiento de actividad económica).',
+        detalle: 'Contravalor del día de cada recompensa, con fuente citada. [MT U4 principio 5]',
       },
     ],
   },
@@ -248,12 +275,14 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'prueba-recepcion',
         documento: 'Prueba de la recepción del airdrop',
-        detalle: 'TODO-REVISION: txid o captura de la recepción y de la campaña del airdrop.',
+        detalle:
+          'Txid o captura de la recepción y de la campaña; «los tokens sin mercado líquido en el momento de la recepción: se documenta la mejor valoración disponible y su fuente». [MT U8.3]',
       },
       {
         clave: 'valor-mercado',
         documento: 'Prueba del valor de mercado en EUR',
-        detalle: 'TODO-REVISION: cotización del token a la fecha de recepción (ganancia base general).',
+        detalle:
+          'Valor de mercado al día de recepción (es renta ahora y coste del lote después: 0018-23). [MF U3]',
       },
     ],
   },
@@ -265,12 +294,14 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'factura-recibo',
         documento: 'Factura o recibo del bien/servicio pagado',
-        detalle: 'TODO-REVISION: documento que fija el precio (valor de transmisión).',
+        detalle:
+          '«Quien factura en bitcoin genera, al facturar, el mejor documento de adquisición posible: causa, contraparte, importe y fecha». Para el pagador: factura del bien/servicio recibido (fija el valor de transmisión). [MT U2.3.d]',
       },
       {
         clave: 'txid-pago',
         documento: 'txid / hash del pago',
-        detalle: 'TODO-REVISION: identificador on-chain del pago en cripto.',
+        detalle:
+          'Txid del pago vinculado a la factura («documentar su vinculación a una txid específica»). [MT U2.3.d]',
       },
     ],
   },
@@ -282,17 +313,19 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'denuncia',
         documento: 'Denuncia ante policía / juzgado',
-        detalle: 'TODO-REVISION: denuncia del robo, estafa o pérdida (imprescindible según la dualidad DGT).',
+        detalle:
+          '«La denuncia ante las Fuerzas y Cuerpos de Seguridad con identificación precisa de los activos sustraídos»; «condición necesaria y no suficiente». [MF U2, V1174-25]',
       },
       {
         clave: 'expediente-atestado',
         documento: 'Expediente / atestado / resolución',
-        detalle: 'TODO-REVISION: actuaciones posteriores que sostienen la efectividad de la pérdida.',
+        detalle:
+          '«Los hashes de las transacciones de salida y las direcciones de destino; la acreditación de la titularidad previa de las direcciones vaciadas; los justificantes de adquisición originales; en su caso, informes periciales; y la trazabilidad posterior de los fondos». [MF U2]',
       },
       {
         clave: 'txid-perdida',
         documento: 'txid del movimiento no autorizado',
-        detalle: 'TODO-REVISION: identificador on-chain de la salida de los fondos.',
+        detalle: 'Txids del drenaje y capturas del incidente, reunidos «ese día». [MT U8.7]',
       },
     ],
   },
@@ -304,17 +337,18 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'documento-donacion',
         documento: 'Documento de la donación (contrato / escritura)',
-        detalle: 'TODO-REVISION: documento que acredita la transmisión lucrativa y las partes.',
+        detalle:
+          '«Documento de la donación, parentesco, valoración a la fecha. Además fija el valor y la fecha de adquisición del receptor». [MT U2.3.e]',
       },
       {
         clave: 'liquidacion-isd',
         documento: 'Liquidación del ISD (donatario)',
-        detalle: 'TODO-REVISION: modelo del Impuesto sobre Sucesiones y Donaciones cuando proceda.',
+        detalle: 'Autoliquidación del ISD cuando proceda. [MT U2.3.e y MF U1-U2]',
       },
       {
         clave: 'txid-donacion',
         documento: 'txid / hash de la transferencia',
-        detalle: 'TODO-REVISION: identificador on-chain de la entrega de la cripto.',
+        detalle: 'Txid de la entrega. [MT U3.3]',
       },
     ],
   },
@@ -326,7 +360,8 @@ export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>
       {
         clave: 'soporte-correccion',
         documento: 'Soporte de la corrección',
-        detalle: 'TODO-REVISION: documento o cálculo que justifica la rectificación (principio 7, U7.4).',
+        detalle:
+          '«El apunte original se conserva y la corrección entra como apunte nuevo de AJUSTE/RECTIFICACIÓN, con referencia al apunte corregido» y su causa documentada. [MT U7.4]',
       },
     ],
   },
@@ -461,15 +496,23 @@ export interface Huerfanos {
   apuntesSinJustificante: Apunte[]
 }
 
-/** Detecta justificantes sin apunte y apuntes sin justificante. */
+/**
+ * Detecta justificantes sin apunte y apuntes sin justificante. Los justificantes archivados en
+ * las carpetas `CARPETAS_SIN_APUNTE` (certificados anuales, exportaciones CSV, etiquetas
+ * BIP-329) son documentos de ubicación/ejercicio y NO se cuentan como huérfanos aunque no
+ * tengan apunte asociado [MT U3.3].
+ */
 export function detectarHuerfanos(
   apuntes: readonly Apunte[],
   justificantes: readonly Justificante[],
 ): Huerfanos {
   const idsApunte = new Set(apuntes.map((a) => a.id))
+  const sinApunteAdmitido = new Set<RutaConvencional>(CARPETAS_SIN_APUNTE)
   const apuntesConJustificante = new Set(justificantes.map((j) => j.apunteId))
   return {
-    justificantesSinApunte: justificantes.filter((j) => !idsApunte.has(j.apunteId)),
+    justificantesSinApunte: justificantes.filter(
+      (j) => !idsApunte.has(j.apunteId) && !sinApunteAdmitido.has(j.rutaConvencional),
+    ),
     apuntesSinJustificante: apuntes.filter((a) => !apuntesConJustificante.has(a.id)),
   }
 }

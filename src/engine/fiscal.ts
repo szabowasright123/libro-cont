@@ -7,11 +7,13 @@
  * pérdidas. Las cifras reconcilian con los golden del FIFO (criterio de aceptación P7).
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * REGLA DE ORO 5 — TEXTOS FISCALES: en este módulo los textos con calificación fiscal NO se
- * redactan. Cada ranura de texto vale el marcador `{{TEXTO-MANUAL}}` (MARCADOR_TEXTO); el
- * responsable del taller pegará los literales del manual. El catálogo de ranuras
- * (`RANURAS_TEXTO_MANUAL`) alimenta docs/PENDIENTE_TEXTOS.md. El motor solo calcula números
- * y estructura; las etiquetas estructurales (nombres de los cajones) no son calificaciones.
+ * REGLA DE ORO 5 — TEXTOS FISCALES: los textos con calificación fiscal NO se redactan en la
+ * app; son literales de los manuales del taller. Los pegó el responsable (validados a
+ * 2026-08-06, ver docs/TEXTOS_MANUAL_RANURAS.md) en `CONCEPTOS_FISCALES` (explicación + fecha
+ * de criterio de cada cajón) y en `AVISO_721` / `NOTA_172_173`. El marcador `{{TEXTO-MANUAL}}`
+ * (MARCADOR_TEXTO) sigue disponible para ranuras aún sin literal (p. ej. casillas de un
+ * ejercicio nuevo). El motor solo calcula números y estructura; las etiquetas estructurales
+ * (nombres de los cajones) no son calificaciones.
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * Cajones (DOMINIO §3.3 / §4 FISCAL):
@@ -72,7 +74,7 @@ export type ConceptoFiscal =
 /**
  * Definición estructural de un cajón fiscal. `etiqueta` y `baseImponible` son terminología
  * estructural (nombres de la base), NO calificaciones: la calificación fiscal literal vive
- * en las ranuras `{{TEXTO-MANUAL}}` (`explicacion`, `fechaCriterio`).
+ * en `explicacion` y `fechaCriterio` (literales de los manuales del taller).
  */
 export interface DefinicionConcepto {
   readonly clave: ConceptoFiscal
@@ -82,15 +84,15 @@ export interface DefinicionConcepto {
   readonly baseImponible: string
   /** Tipos de operación que alimentan el cajón. */
   readonly tipos: readonly TipoOperacion[]
-  /** Ranura de la explicación fiscal (literal del manual): `{{TEXTO-MANUAL}}`. */
-  readonly explicacion: typeof MARCADOR_TEXTO
-  /** Ranura de la fecha de criterio de la calificación (literal del manual). */
-  readonly fechaCriterio: typeof MARCADOR_TEXTO
+  /** Explicación fiscal literal del manual (con su cita). Ver DOMINIO.md / manuales del taller. */
+  readonly explicacion: string
+  /** Fecha de criterio de la calificación (literal del manual, con «Verificado a …»). */
+  readonly fechaCriterio: string
 }
 
 /**
- * CONCEPTOS_FISCALES — los cinco cajones, con sus tipos y sus ranuras de texto manual.
- * Las etiquetas son estructurales; toda calificación fiscal queda en `{{TEXTO-MANUAL}}`.
+ * CONCEPTOS_FISCALES — los cinco cajones, con sus tipos y sus textos del manual. Las
+ * etiquetas son estructurales; la calificación fiscal literal vive en `explicacion`/`fechaCriterio`.
  */
 export const CONCEPTOS_FISCALES: Readonly<Record<ConceptoFiscal, DefinicionConcepto>> = {
   ahorro: {
@@ -98,42 +100,66 @@ export const CONCEPTOS_FISCALES: Readonly<Record<ConceptoFiscal, DefinicionConce
     etiqueta: 'Ganancias y pérdidas por transmisión',
     baseImponible: 'Base imponible del ahorro',
     tipos: ['VENTA', 'PERMUTA', 'PAGO'],
-    explicacion: MARCADOR_TEXTO,
-    fechaCriterio: MARCADOR_TEXTO,
+    explicacion:
+      '«Alteraciones CON transmisión. La variación de valor aflora porque un elemento patrimonial sale del patrimonio […]. Se cuantifican por diferencia entre el valor de transmisión y el valor de adquisición (arts. 34 a 37 LIRPF) y se integran en la base imponible del ahorro (art. 46.b).» En las ventas parciales, la DGT «sostiene que las criptomonedas de un mismo tipo son bienes homogéneos y que […] se entienden transmitidas las adquiridas en primer lugar (el método FIFO; consultas V0975-22 y V2520-22)». La STSJ PV 37/2025, de 9-1-2025 (ROJ: STSJ PV 41/2025), rechazó ese planteamiento en territorio foral; «la sentencia no constituye jurisprudencia consolidada». — [MF] Unidad 3, «Alteraciones patrimoniales» y Unidad 1 (FIFO y controversia foral).',
+    fechaCriterio:
+      'FIFO: DGT V0975-22 y V2520-22 (2022), vigente; V0525-25 (28-3-2025) y V0491-26 sobre cola única. Controversia foral: STSJ PV 37/2025, de 9-1-2025, no firme. Verificado a 6-8-2026.',
   },
   rcm: {
     clave: 'rcm',
     etiqueta: 'Rendimientos del capital mobiliario',
     baseImponible: 'Base imponible del ahorro',
     tipos: ['RENDIMIENTO'],
-    explicacion: MARCADOR_TEXTO,
-    fechaCriterio: MARCADOR_TEXTO,
+    explicacion:
+      '«Las recompensas obtenidas por poner tokens en stake se califican como rendimientos del capital mobiliario del art. 25.2 LIRPF, procedentes de la cesión a terceros de capitales propios. Así lo sostiene la DGT desde la consulta V1766-22, de 26 de julio de 2022, y lo consolida la V0612-26, de 17 de marzo de 2026. […] los rendimientos se integran en la base del ahorro; se valoran por su valor de mercado en euros el día de su percepción (rendimiento en especie, art. 43.1 LIRPF); y […] la DGT no admite deducir gastos asociados (criterio V0648-24).» Los intereses de lending tienen la misma calificación (V0648-24, de 11-4-2024). — [MF] Unidad 4, «El staking: rendimiento del capital mobiliario».',
+    fechaCriterio:
+      'V1766-22 (26-7-2022), consolidada por V0612-26 (17-3-2026, que concreta además la imputación temporal ex art. 14.1.a LIRPF); lending V0648-24 (11-4-2024). Verificado a 6-8-2026.',
   },
   'actividad-economica': {
     clave: 'actividad-economica',
     etiqueta: 'Actividad económica (minería)',
     baseImponible: 'Base imponible general',
     tipos: ['MINERIA'],
-    explicacion: MARCADOR_TEXTO,
-    fechaCriterio: MARCADOR_TEXTO,
+    explicacion:
+      '«La minería basada en PoW constituye una actividad económica ya que hay una ordenación por cuenta propia de medios materiales y humanos dirigida a la obtención de rendimientos, que es exactamente el presupuesto del artículo 27.1 LIRPF. Sus consecuencias son que los rendimientos netos se integran en la base general, se determinan por diferencia entre ingresos y gastos deducibles (amortización del hardware, electricidad, etc.) y quedan sujetos a las obligaciones formales del empresario o profesional (alta censal, libros registro, pagos fraccionados).» En IVA, la V3625-16 la considera operación no sujeta, sin derecho a deducir el IVA soportado. — [MF] Unidad 4, «La minería PoW: actividad económica no sujeta a IVA».',
+    fechaCriterio:
+      'Art. 27.1 LIRPF; IVA/IAE: DGT V3625-16 (31-8-2016). Verificado a 6-8-2026.',
   },
   'base-general': {
     clave: 'base-general',
     etiqueta: 'Ganancias no derivadas de transmisión (airdrops)',
     baseImponible: 'Base imponible general',
     tipos: ['AIRDROP'],
-    explicacion: MARCADOR_TEXTO,
-    fechaCriterio: MARCADOR_TEXTO,
+    explicacion:
+      '«El airdrop, esto es, la recepción gratuita de tokens, normalmente con fines promocionales, constituye, según la Consulta General 0018-23, de 29 de junio de 2023, una ganancia patrimonial que no deriva de transmisión, integrada en la base general (arts. 33.1 y 37.1.l LIRPF) y valorada por el valor de mercado de los tokens en el momento de su recepción. Ese mismo valor cumple una doble función: (i) es la renta que se declara ahora y (ii) será el valor de adquisición cuando esos tokens se transmitan en el futuro.» Atención a la signatura: la 0018-23 es consulta general, «no vincula a la Administración conforme al artículo 89 LGT, aunque expresa su criterio». — [MF] Unidad 3, «Airdrops y hard forks: lo resuelto y la zona gris» y Unidad 1 (valor de las consultas).',
+    fechaCriterio:
+      'Consulta General 0018-23 (29-6-2023) — NO vinculante; valor orientativo. Verificado a 6-8-2026.',
   },
   perdidas: {
     clave: 'perdidas',
     etiqueta: 'Pérdidas (robo, estafa, extravío)',
     baseImponible: 'Condicionada a requisitos y prueba',
     tipos: ['PERDIDA'],
-    explicacion: MARCADOR_TEXTO,
-    fechaCriterio: MARCADOR_TEXTO,
+    explicacion:
+      'Tres tipologías con suerte distinta: «(i) las pérdidas por error de manipulación […]; (ii) los robos […]; y (iii) las estafas». Sobre el error «no existe criterio publicado de la DGT» y «la posición prudente es no computar la pérdida sin un soporte probatorio excepcional». «Los robos y las estafas, por el contrario, sí pueden generar pérdidas patrimoniales deducibles […]. El patrimonio disminuye sin contraprestación y por ello se integran en la base general, no en la del ahorro.» Robo: V1174-25 (1-7-2025) «admite computar la pérdida debidamente justificada»; «la denuncia formal es condición necesaria y no suficiente». Estafa de autor desconocido: se computa en el ejercicio del fraude «siempre que quede debidamente justificada» (V0625-24 y V1828-24). Deudor identificado: rige el art. 14.2.k) LIRPF y «mientras pende un proceso penal contra el presunto estafador no cabe deducir la pérdida» (V1579-22 y V1134-25). — [MF] Unidad 2, «Pérdidas, robos y estafas».',
+    fechaCriterio:
+      'Robo: V1174-25 (1-7-2025). Estafas: V0625-24 (11-4-2024), V1828-24 (1-8-2024); deudor identificado V1579-22 (30-6-2022) y V1134-25 (27-6-2025). Cuantificación (adquisición vs mercado) sin criterio publicado: tesis prudente, valor de adquisición. Verificado a 6-8-2026.',
   },
 }
+
+/**
+ * AVISO_721 — texto informativo literal del modelo 721 (saldos en el extranjero). Se muestra
+ * como llamada de atención; nunca es un cálculo de la obligación (Regla de oro 5).
+ */
+export const AVISO_721 =
+  '«El modelo 721 obliga a los residentes a declarar las monedas virtuales situadas en el extranjero, esto es, custodiadas por personas o entidades no residentes, cuando los saldos conjuntos superen los 50.000 euros, con plazo de presentación entre el 1 de enero y el 31 de marzo del ejercicio siguiente» (Ley 11/2021, RD 249/2023, OM HFP/886/2023 y HFP/887/2023). «La exclusión de la autocustodia no es solo interpretación doctrinal: la DGT la confirmó en la V2290-23, de 28-7-2023 […]; lo que está en monederos cuyas claves controla el contribuyente no computa ni se declara.» Doctrina posterior: V0941-24 (paper wallet, fuera del 721), V1012-25 (saldo determinante) y V1030-25 (años sucesivos tras ventas parciales). Este aviso es solo una llamada de atención calculada sobre las ubicaciones marcadas como extranjeras: no es un cálculo de la obligación. — [MF] Unidad 1, «Modelos 721/172/173» · [MT] Unidad 10, ap. 1.'
+
+/**
+ * NOTA_172_173 — texto informativo literal de los modelos 172 (saldos) y 173 (operaciones),
+ * que declaran los proveedores establecidos en España (declaraciones informativas de terceros).
+ */
+export const NOTA_172_173 =
+  '«Los modelos 172 (saldos) y 173 (operaciones) recaen […] sobre los proveedores de servicios sobre criptoactivos establecidos en España, que deben suministrar anualmente, en el mes de enero, los saldos y las operaciones de sus clientes.» «La información de los modelos 172 y 173 alimenta directamente los datos fiscales de la campaña de Renta» (aviso «CR2»): «el contribuyente debe partir de la base de que la Administración ya conoce sus saldos y operaciones en plataformas españolas antes de que presente la declaración, y de que ese perímetro se ampliará a los proveedores extranjeros con los primeros intercambios DAC8/CARF». — [MF] Unidad 1, «Modelos 721/172/173» y Unidad 4 (datos fiscales).'
 
 /** Una ranura de texto fiscal por rellenar (para docs/PENDIENTE_TEXTOS.md y la UI). */
 export interface RanuraTextoManual {
