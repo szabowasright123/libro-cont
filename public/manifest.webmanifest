@@ -1,0 +1,19 @@
+{
+  "name": "Libro Hespérides",
+  "short_name": "Hespérides",
+  "description": "Libro contable y Archivo probatorio del Taller de Bitcoin (Universidad de las Hespérides). App local-first.",
+  "lang": "es-ES",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

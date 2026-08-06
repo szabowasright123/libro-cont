@@ -1,0 +1,38 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+dist-ssr/
+*.local
+
+# Vitest / cobertura
+coverage/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# TypeScript incremental
+*.tsbuildinfo
+node_modules/.tmp/
+
+# Editores / SO
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

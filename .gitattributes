@@ -1,0 +1,7 @@
+# Normaliza finales de línea a LF en el repo (CI corre en Ubuntu).
+* text=auto eol=lf
+
+# Binarios: nunca normalizar.
+*.xlsx binary
+*.png binary
+*.ico binary

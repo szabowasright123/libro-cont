@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Libro Hespérides">
+  <rect width="512" height="512" rx="96" fill="#0f172a" />
+  <!-- Placeholder: libro abierto + símbolo bitcoin. Sustituir por icono definitivo. -->
+  <g fill="none" stroke="#f8fafc" stroke-width="20" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M96 140c60-28 120-28 160 0v232c-40-28-100-28-160 0z" />
+    <path d="M416 140c-60-28-120-28-160 0v232c40-28 100-28 160 0z" />
+    <path d="M256 140v232" />
+  </g>
+  <text x="256" y="300" font-family="system-ui, sans-serif" font-size="150" font-weight="700"
+        fill="#f7931a" text-anchor="middle" dominant-baseline="middle">₿</text>
+</svg>

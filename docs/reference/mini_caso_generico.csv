@@ -1,0 +1,21 @@
+fecha,hora,tipo,plataforma,activo_recibido,cantidad_recibida,activo_entregado,cantidad_entregada,comision,moneda_comision,descripcion
+2024-01-15,09:00,deposito_fiat,Kraken,EUR,25000,,,,,Ingreso inicial de fiat
+2024-01-16,10:00,compra,Kraken,BTC,0.5,EUR,20000,30,EUR,Compra BTC con EUR
+2024-01-20,11:00,compra,Kraken,ETH,2,EUR,4400,6,EUR,Compra ETH con EUR
+2024-02-15,12:00,staking,Kraken,ETH,0.05,,,,,Recompensa staking ETH
+2024-03-01,12:00,airdrop,Kraken,TOKENX,100,,,,,Airdrop token ficticio TOKENX
+2024-03-10,13:00,permuta,Kraken,BTC,0.05,ETH,1,0.001,ETH,Permuta cripto-cripto ETH por BTC
+2024-03-20,14:00,retirada_cripto,Kraken,,,BTC,0.3,0.0002,BTC,Envio a wallet propia Ledger
+2024-03-20,14:30,deposito_cripto,Ledger,BTC,0.3,,,,,Recepcion desde Kraken (transferencia interna)
+2024-04-05,10:00,venta,Kraken,EUR,6500,BTC,0.1,10,EUR,Venta parcial BTC
+2024-04-15,10:00,compra,Kraken,ADA,500,EUR,300,,,Compra ADA
+2024-05-15,12:00,staking,Kraken,ADA,5,,,,,Recompensa staking ADA
+2024-05-20,10:00,venta,Kraken,EUR,150,TOKENX,100,,,Venta del airdrop TOKENX
+2024-06-01,12:00,mineria,Ledger,BTC,0.002,,,,,Recompensa mineria PoW
+2024-06-10,10:00,venta,Kraken,EUR,350,ADA,505,,,Venta total ADA (incluye las 5 de staking)
+2024-07-01,10:00,compra,Kraken,BTC,0.02,EUR,1200,,,Recompra BTC
+2024-07-15,10:00,permuta,Kraken,USDC,300,BTC,0.01,,,Permuta BTC por stablecoin USDC
+2024-08-15,12:00,interes_lending,Kraken,USDC,5,,,,,Interes por lending de USDC
+2024-09-01,12:00,robo,Ledger,,,BTC,0.005,,,Robo/estafa phishing en wallet
+2024-09-15,10:00,retirada_fiat,Kraken,,,EUR,5000,,,Retirada de fiat a cuenta bancaria
+2024-10-01,10:00,venta,Kraken,EUR,3200,BTC,0.05,,,Venta final BTC
