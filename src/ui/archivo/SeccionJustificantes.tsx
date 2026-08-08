@@ -167,7 +167,7 @@ export function SeccionJustificantes({ tipo, conKyc, value, onChange }: Props) {
                     <button
                       type="button"
                       onClick={() => anadir(r.clave)}
-                      className="ml-2 text-amber-700 underline hover:text-amber-800 dark:text-amber-400"
+                      className="ml-2 text-brand-600 underline hover:text-brand-700 dark:text-amber-400"
                     >
                       añadir
                     </button>

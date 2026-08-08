@@ -16,8 +16,15 @@ import {
   type ApunteRegistro,
   type BorradorApunte,
   type JustificanteRegistro,
+  type PrecioRegistro,
   CLAVE_PARAMETROS,
 } from './tipos'
+import {
+  APUNTES_CASO_DEMO,
+  UBICACIONES_CASO_DEMO,
+  ACTIVOS_CASO_DEMO,
+  PRECIOS_CASO_DEMO,
+} from './demo/mini-caso-demo'
 import { renumerar, type CambioNumero } from './numeracion'
 import type { ContenidoLibro } from './import/contenido'
 import type {
@@ -246,11 +253,43 @@ export async function obtenerTolerancias(): Promise<Tolerancias> {
 
 /** Guarda las tolerancias del cuadre. */
 export async function guardarTolerancias(tol: Tolerancias): Promise<void> {
+  const prev = await db.parametros.get(CLAVE_PARAMETROS)
   await db.parametros.put({
+    ...(prev ?? { clave: CLAVE_PARAMETROS }),
     clave: CLAVE_PARAMETROS,
     toleranciaVerde: tol.verde,
     toleranciaAmbar: tol.ambar,
   })
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Precios manuales (pestaña Cartera, P9.2) — local-first, NUNCA por red
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Todos los precios manuales introducidos por el alumno. */
+export async function listarPrecios(): Promise<PrecioRegistro[]> {
+  return db.precios.toArray()
+}
+
+/**
+ * Guarda (o actualiza) el precio manual de un activo en EUR, con su fecha de introducción.
+ * EUR no debería llamar aquí (vale 1); si `precioEur` viene vacío, se borra el precio.
+ */
+export async function guardarPrecio(
+  activo: string,
+  precioEur: string,
+  fechaISO: string,
+): Promise<void> {
+  if (precioEur === '') {
+    await db.precios.delete(activo)
+    return
+  }
+  await db.precios.put({ activo, precioEur, fechaISO })
+}
+
+/** Borra el precio manual de un activo. */
+export async function borrarPrecio(activo: string): Promise<void> {
+  await db.precios.delete(activo)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -359,14 +398,18 @@ function conActivosBase(activos: readonly Activo[]): Activo[] {
 export async function reemplazarContenido(contenido: ContenidoLibro): Promise<CambioNumero[]> {
   return db.transaction(
     'rw',
-    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros],
+    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros, db.precios],
     async () => {
       await Promise.all([
         db.apuntes.clear(),
         db.ubicaciones.clear(),
         db.activos.clear(),
         db.justificantes.clear(),
+        // Un import es un Libro nuevo: sus precios manuales (si los hubiera) dejan de aplicar.
+        db.precios.clear(),
       ])
+      // Un import limpia también la marca del caso de ejemplo (ya no es la demo).
+      await limpiarMarcaDemo()
       await db.activos.bulkAdd(conActivosBase(contenido.activos))
       if (contenido.ubicaciones.length > 0) await db.ubicaciones.bulkAdd(contenido.ubicaciones.map((u) => ({ ...u })))
       if (contenido.apuntes.length > 0) await db.apuntes.bulkAdd(contenido.apuntes.map(apunteARegistro))
@@ -506,13 +549,14 @@ export async function snapshotActual(): Promise<EntradaSnapshot> {
 export async function restaurarSnapshot(snapshot: SnapshotLibro): Promise<CambioNumero[]> {
   return db.transaction(
     'rw',
-    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros],
+    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros, db.precios],
     async () => {
       await Promise.all([
         db.apuntes.clear(),
         db.ubicaciones.clear(),
         db.activos.clear(),
         db.justificantes.clear(),
+        db.precios.clear(),
       ])
       await db.activos.bulkAdd(conActivosBase(snapshot.activos))
       if (snapshot.ubicaciones.length > 0) await db.ubicaciones.bulkAdd(snapshot.ubicaciones.map((u) => ({ ...u })))
@@ -547,7 +591,7 @@ export async function restaurarSnapshot(snapshot: SnapshotLibro): Promise<Cambio
 export async function borrarTodo(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros],
+    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros, db.precios],
     async () => {
       await Promise.all([
         db.apuntes.clear(),
@@ -555,6 +599,7 @@ export async function borrarTodo(): Promise<void> {
         db.activos.clear(),
         db.justificantes.clear(),
         db.parametros.clear(),
+        db.precios.clear(),
       ])
       await db.activos.bulkAdd(ACTIVOS_BASE.map((a) => ({ ...a })))
       await db.parametros.add({
@@ -566,4 +611,71 @@ export async function borrarTodo(): Promise<void> {
   )
   // `sembrarSiVacia` es idempotente: garantiza coherencia si algo quedó a medias.
   await sembrarSiVacia()
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Caso de ejemplo (mini-caso 2024) — onboarding con un clic (P9.3)
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Quita la marca `demoCargada` del singleton de parámetros (si existe). */
+async function limpiarMarcaDemo(): Promise<void> {
+  const prev = await db.parametros.get(CLAVE_PARAMETROS)
+  if (prev?.demoCargada) {
+    const { demoCargada: _drop, ...resto } = prev
+    await db.parametros.put(resto)
+  }
+}
+
+/** ¿Está cargado el caso de ejemplo (mini-caso 2024)? */
+export async function estaDemoCargada(): Promise<boolean> {
+  const p = await db.parametros.get(CLAVE_PARAMETROS)
+  return p?.demoCargada === true
+}
+
+/** ¿Hay algún apunte en el Libro? (para decidir si se puede cargar la demo sin avisar). */
+export async function libroVacio(): Promise<boolean> {
+  return (await db.apuntes.count()) === 0
+}
+
+/**
+ * Carga el CASO DE EJEMPLO (mini-caso 2024): REEMPLAZA el contenido del Libro por los apuntes,
+ * ubicaciones y activos de la demo, siembra los precios manuales de demostración y marca
+ * `demoCargada`. Idempotente: llamarla dos veces no duplica (siempre reemplaza). Renumera al
+ * final para dejar los correlativos como los del golden. Transacción atómica.
+ */
+export async function cargarCasoDemo(): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros, db.precios],
+    async () => {
+      await Promise.all([
+        db.apuntes.clear(),
+        db.ubicaciones.clear(),
+        db.activos.clear(),
+        db.justificantes.clear(),
+        db.precios.clear(),
+      ])
+      await db.activos.bulkAdd(conActivosBase(ACTIVOS_CASO_DEMO))
+      await db.ubicaciones.bulkAdd(UBICACIONES_CASO_DEMO.map((u) => ({ ...u })))
+      await db.apuntes.bulkAdd(APUNTES_CASO_DEMO.map(apunteARegistro))
+      await renumerarTodo()
+      await db.precios.bulkAdd(PRECIOS_CASO_DEMO.map((p) => ({ ...p })))
+      const prev = await db.parametros.get(CLAVE_PARAMETROS)
+      await db.parametros.put({
+        clave: CLAVE_PARAMETROS,
+        toleranciaVerde: prev?.toleranciaVerde ?? TOLERANCIAS_POR_DEFECTO.verde,
+        toleranciaAmbar: prev?.toleranciaAmbar ?? TOLERANCIAS_POR_DEFECTO.ambar,
+        ...(prev?.cuadreReal ? { cuadreReal: prev.cuadreReal } : {}),
+        demoCargada: true,
+      })
+    },
+  )
+}
+
+/**
+ * Borra el caso de ejemplo y deja el Libro VACÍO (misma mecánica que el borrado total, que ya
+ * reinicia lo de serie y quita la marca de demo). Para el botón «Borrar caso de ejemplo».
+ */
+export async function borrarCasoDemo(): Promise<void> {
+  await borrarTodo()
 }

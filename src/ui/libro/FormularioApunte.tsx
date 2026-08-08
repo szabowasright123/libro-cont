@@ -22,6 +22,12 @@ import {
   type CamposApunte,
   type SentidoDonacion,
 } from './modeloFormulario'
+import {
+  SUBTIPOS_PERDIDA,
+  SUBTIPOS_PERDIDA_ELEGIBLES,
+  FECHA_CRITERIO_PERDIDAS,
+} from './perdidaSubtipos'
+import type { SubtipoPerdida } from '../../data/tipos'
 import { ETIQUETA_TIPO, TIPOS_OPERACION } from '../../engine/types'
 import { mapaKyc, ubicacionRelevanteConKyc } from '../../engine/archivo'
 import { BTN_PRIMARIO, BTN_SEC, INPUT, Modal, Banner } from '../comp'
@@ -106,6 +112,8 @@ function sanear(b: BorradorApunte, campos: CamposApunte): BorradorApunte {
   }
   if (campos.contravalor === 'oculto') delete out.contravalorEUR
   if (campos.rectificaA === 'oculto') delete out.rectificaAUid
+  // El subtipo solo aplica a PÉRDIDA (derivada D2): en el resto se descarta.
+  if (b.tipo !== 'PERDIDA') delete out.subtipoPerdida
   // Normaliza cantidades a decimal de dominio (punto interno); descarta las que no
   // sean un número válido para no persistir texto a medio teclear.
   normalizarCampo(out, 'cantidadEntrada')
@@ -189,6 +197,9 @@ export function FormularioApunte({
       // Sugerencias de ubicación de frontera según el tipo.
       if (c.origenPorDefecto) nb.ubicacionOrigen = c.origenPorDefecto
       if (c.destinoPorDefecto) nb.ubicacionDestino = c.destinoPorDefecto
+      // PÉRDIDA: arranca «sin clasificar» hasta que el alumno elija el subtipo (D2).
+      if (tipo === 'PERDIDA') nb.subtipoPerdida = b.subtipoPerdida ?? 'sin-clasificar'
+      else delete nb.subtipoPerdida
       return nb
     })
   }
@@ -458,6 +469,14 @@ export function FormularioApunte({
           />
         </label>
 
+        {/* PÉRDIDA: subtipo (error/robo/estafa) → criterio fiscal y checklist probatorio (D2). */}
+        {borrador.tipo === 'PERDIDA' && (
+          <SubtipoPerdidaBloque
+            valor={borrador.subtipoPerdida ?? 'sin-clasificar'}
+            onCambio={(s) => set({ subtipoPerdida: s })}
+          />
+        )}
+
         {/* Justificantes (Archivo probatorio) */}
         <SeccionJustificantes
           tipo={borrador.tipo}
@@ -552,6 +571,63 @@ function GrupoActivoCantidad({
         </select>
       </div>
     </div>
+  )
+}
+
+/**
+ * Bloque de subtipo de PÉRDIDA (derivada D2): selector + aviso de criterio fiscal + checklist
+ * probatorio del subtipo. Orientativo (Regla 5); toda pérdida computable va a la BASE GENERAL.
+ */
+function SubtipoPerdidaBloque({
+  valor,
+  onCambio,
+}: {
+  valor: SubtipoPerdida
+  onCambio: (s: SubtipoPerdida) => void
+}) {
+  const def = SUBTIPOS_PERDIDA[valor]
+  return (
+    <fieldset className="space-y-2 rounded-md border border-brand-200 bg-brand-50/50 p-3">
+      <legend className="px-1 text-sm font-medium text-brand-700">
+        Subtipo de la pérdida (criterio fiscal y prueba)
+      </legend>
+      <label className="block text-sm">
+        <span className="mb-1 block font-medium text-stone-700">¿Qué clase de pérdida es?</span>
+        <select
+          className={INPUT}
+          aria-label="Subtipo de la pérdida"
+          value={valor}
+          onChange={(e) => onCambio(e.target.value as SubtipoPerdida)}
+        >
+          {SUBTIPOS_PERDIDA_ELEGIBLES.map((s) => (
+            <option key={s} value={s}>
+              {SUBTIPOS_PERDIDA[s].etiqueta}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {valor === 'sin-clasificar' && (
+        <Banner tono="info">
+          Clasifica el subtipo para ver el criterio de deducibilidad y el checklist probatorio.
+        </Banner>
+      )}
+
+      <p className="text-xs font-medium text-stone-700">{def.encajeFiscal}</p>
+      <p className="text-xs leading-relaxed text-stone-500">{def.aviso}</p>
+
+      <div>
+        <p className="text-xs font-semibold text-stone-600">Checklist probatorio:</p>
+        <ul className="ml-4 list-disc space-y-0.5 text-xs text-stone-500">
+          {def.checklist.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+      </div>
+      <p className="text-[11px] italic text-stone-400">
+        {FECHA_CRITERIO_PERDIDAS} Orientativo; no sustituye la revisión de un profesional.
+      </p>
+    </fieldset>
   )
 }
 

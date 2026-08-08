@@ -20,6 +20,7 @@ import {
   MARCADOR_TEXTO,
   type ConceptoFiscal,
   type ResumenFiscal,
+  type AvisoSaldoExtranjero,
 } from '../../engine/fiscal'
 import { casillasDeEjercicio, type MapaCasilla } from '../../data/casillas-2024'
 import {
@@ -29,13 +30,20 @@ import {
   aDominio,
   justificantesADominio,
 } from '../../data/repositorio'
+import type { SubtipoPerdida } from '../../data/tipos'
 import { useLiveQuery } from '../../data/useLiveQuery'
 import { fmtDecimal, fmtEuro, fmtFecha, fmtUbicacion, aDecimalDominio } from '../formato'
 import { descargarTexto } from '../descargas'
 import { BTN_PRIMARIO, BTN_SEC, INPUT, Banner } from '../comp'
 import { construirInformeFiscalHtml } from '../fiscal/informeFiscalHtml'
 import { resumenFiscalACsv } from '../fiscal/fiscalCsv'
+import { calcularAviso721, type Aviso721DobleFecha } from '../fiscal/aviso721'
+import { SUBTIPOS_PERDIDA } from '../libro/perdidaSubtipos'
 import { UnidadManual } from '../guia/UnidadManual'
+
+/** Rótulo fijo del cajón de pérdidas (derivada D2, P9.4): siempre BASE GENERAL, nunca ahorro. */
+const ROTULO_PERDIDAS =
+  'Posible pérdida patrimonial en BASE GENERAL, condicionada al expediente probatorio'
 
 /** Marcador de texto manual, resaltado para que se vea que falta el literal. */
 function Marcador() {
@@ -70,6 +78,24 @@ export function FiscalPage() {
   const nombrePorId = useMemo(() => new Map(ubicaciones.map((u) => [u.id, u.nombre])), [ubicaciones])
   const nombreUbic = (r: string) => fmtUbicacion(r, nombrePorId)
 
+  // Autocustodia excluida del 721 (derivada D2): también para el resumen del motor y el HTML,
+  // se anula «extranjero» en las ubicaciones de autocustodia antes de calcular.
+  const ubicacionesParaFiscal = useMemo(
+    () => ubicaciones.map((u) => (u.autocustodia ? { ...u, extranjero: false } : u)),
+    [ubicaciones],
+  )
+
+  // Subtipo de cada apunte PÉRDIDA (capa de datos) para rotular su criterio en el resumen.
+  const subtipoPorApunte = useMemo(
+    () =>
+      new Map<string, SubtipoPerdida>(
+        registros
+          .filter((r) => r.tipo === 'PERDIDA')
+          .map((r) => [r.id, r.subtipoPerdida ?? 'sin-clasificar']),
+      ),
+    [registros],
+  )
+
   const ejercicios = useMemo(() => ejerciciosConDatos(apuntes), [apuntes])
   const [ejercicio, setEjercicio] = useState<number | null>(null)
   const ejercicioActivo = ejercicio ?? ejercicios[0] ?? new Date().getFullYear()
@@ -90,15 +116,25 @@ export function FiscalPage() {
   const { resumen, error } = useMemo(() => {
     try {
       return {
-        resumen: calcularResumenFiscal(apuntes, ubicaciones, justificantesDom, ejercicioActivo, {
-          valoracionCierre,
-        }),
+        resumen: calcularResumenFiscal(
+          apuntes,
+          ubicacionesParaFiscal,
+          justificantesDom,
+          ejercicioActivo,
+          { valoracionCierre },
+        ),
         error: null as string | null,
       }
     } catch (e) {
       return { resumen: null, error: e instanceof Error ? e.message : String(e) }
     }
-  }, [apuntes, ubicaciones, justificantesDom, ejercicioActivo, valoracionCierre])
+  }, [apuntes, ubicacionesParaFiscal, justificantesDom, ejercicioActivo, valoracionCierre])
+
+  // Aviso 721 con DOBLE FECHA y autocustodia excluida (capa pura que lee el motor).
+  const aviso721 = useMemo(
+    () => calcularAviso721(apuntes, ubicaciones, ejercicioActivo, valoracionCierre),
+    [apuntes, ubicaciones, ejercicioActivo, valoracionCierre],
+  )
 
   const { casillas, ejercicioMapa, esDelEjercicio } = casillasDeEjercicio(ejercicioActivo)
 
@@ -200,7 +236,7 @@ export function FiscalPage() {
             bloque={resumen.baseGeneral}
             casillas={casillas}
           />
-          <CajonPerdidas resumen={resumen} casillas={casillas} />
+          <CajonPerdidas resumen={resumen} casillas={casillas} subtipoPorApunte={subtipoPorApunte} />
 
           {/* Mapa a casillas de Renta. */}
           <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
@@ -236,8 +272,14 @@ export function FiscalPage() {
             </div>
           </section>
 
-          {/* Aviso 721 (saldos en el extranjero). */}
-          <Aviso721 resumen={resumen} precios={precios} setPrecios={setPrecios} nombreUbic={nombreUbic} />
+          {/* Aviso 721 (saldos en el extranjero) con doble fecha y autocustodia excluida. */}
+          <Aviso721
+            aviso={aviso721}
+            ejercicio={ejercicioActivo}
+            precios={precios}
+            setPrecios={setPrecios}
+            nombreUbic={nombreUbic}
+          />
 
           {/* Nota 172/173. */}
           <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
@@ -429,17 +471,29 @@ function CajonIngresos({
 }
 
 /** Cajón de pérdidas (con estado probatorio y deducibilidad condicionada). */
-function CajonPerdidas({ resumen, casillas }: { resumen: ResumenFiscal; casillas: readonly MapaCasilla[] }) {
+function CajonPerdidas({
+  resumen,
+  casillas,
+  subtipoPorApunte,
+}: {
+  resumen: ResumenFiscal
+  casillas: readonly MapaCasilla[]
+  subtipoPorApunte: ReadonlyMap<string, SubtipoPerdida>
+}) {
   const { perdidas } = resumen
   return (
     <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
       <h2 className="text-lg font-semibold">{CONCEPTOS_FISCALES.perdidas.etiqueta}</h2>
+      {/* Rótulo fijo (derivada D2): siempre BASE GENERAL, nunca ahorro. */}
+      <p className="text-sm font-semibold text-brand-700">{ROTULO_PERDIDAS}</p>
       <CalificacionLinea concepto="perdidas" />
       <CasillaLinea concepto="perdidas" casillas={casillas} />
       <Banner tono="info">
-        <strong>Deducibilidad condicionada</strong> a requisitos y prueba (dualidad DGT). Cada
-        pérdida muestra su estado probatorio del Archivo; sin expediente completo, su cómputo es
-        dudoso.
+        <strong>Posible pérdida patrimonial en la BASE GENERAL</strong> (alteración sin transmisión:
+        el patrimonio disminuye sin contraprestación), <strong>nunca en el ahorro</strong>. Su
+        cómputo está <strong>condicionado al expediente probatorio</strong> y al criterio del
+        subtipo (error/extravío · robo · estafa). Cada pérdida muestra su estado probatorio del
+        Archivo; sin expediente completo, su cómputo es dudoso.
       </Banner>
       <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
         <table className="w-full border-collapse text-sm">
@@ -464,9 +518,21 @@ function CajonPerdidas({ resumen, casillas }: { resumen: ResumenFiscal; casillas
             ) : (
               perdidas.items.map((p) => {
                 const est = ESTADO_PROB[p.estadoProbatorio]!
+                const subtipo = subtipoPorApunte.get(p.apunteId) ?? 'sin-clasificar'
                 return (
                   <tr key={p.apunteId} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
-                    <td className="px-3 py-2 font-mono text-xs text-slate-500">{p.apunteId}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-slate-500">
+                      {p.apunteId}
+                      <span
+                        className={
+                          'mt-0.5 block font-sans not-italic ' +
+                          (subtipo === 'sin-clasificar' ? 'text-semaforo-revisar' : 'text-slate-400')
+                        }
+                        title={SUBTIPOS_PERDIDA[subtipo].encajeFiscal}
+                      >
+                        {SUBTIPOS_PERDIDA[subtipo].etiqueta}
+                      </span>
+                    </td>
                     <td className="px-3 py-2 tabular-nums">{fmtFecha(p.fechaHora)}</td>
                     <td className="px-3 py-2">{p.activo}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtDecimal(p.cantidad)}</td>
@@ -502,46 +568,48 @@ function CajonPerdidas({ resumen, casillas }: { resumen: ResumenFiscal; casillas
   )
 }
 
-/** Aviso informativo del modelo 721 (saldos en el extranjero) con valoración de cierre. */
+/** Aviso informativo del modelo 721 con DOBLE FECHA (estimación 20-oct + normativo 31-dic). */
 function Aviso721({
-  resumen,
+  aviso,
+  ejercicio,
   precios,
   setPrecios,
   nombreUbic,
 }: {
-  resumen: ResumenFiscal
+  aviso: Aviso721DobleFecha
+  ejercicio: number
   precios: Record<string, string>
   setPrecios: (f: (p: Record<string, string>) => Record<string, string>) => void
   nombreUbic: (r: string) => string
 }) {
-  const aviso = resumen.avisoExtranjero
-  // Activos no-EUR con saldo en el extranjero (para pedir su precio de cierre).
+  // Activos no-EUR con saldo en el extranjero en cualquiera de los dos cortes.
   const activosAValorar = useMemo(() => {
     const set = new Set<string>()
-    for (const c of aviso.celdas) if (c.activo !== 'EUR') set.add(c.activo)
+    for (const c of [...aviso.estimacion.celdas, ...aviso.normativo.celdas])
+      if (c.activo !== 'EUR') set.add(c.activo)
     return [...set].sort()
-  }, [aviso.celdas])
+  }, [aviso])
 
   return (
     <section className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
       <h2 className="text-lg font-semibold">Aviso informativo · Modelo 721 (saldos en el extranjero)</h2>
       <p className="text-sm leading-relaxed text-slate-500">{AVISO_721}</p>
       <p className="text-xs text-slate-400">
-        Aviso, nunca cálculo de obligación. Saldos a 31/12/{resumen.ejercicio} en ubicaciones
-        marcadas como <strong>extranjeras</strong> (márcalas en «Ubicaciones»). Umbral informativo:{' '}
-        {fmtEuro(String(aviso.umbralEUR))}.
+        Aviso, nunca cálculo de obligación. Saldos en ubicaciones marcadas como{' '}
+        <strong>extranjeras</strong> (márcalas en «Ubicaciones»); la <strong>autocustodia</strong>{' '}
+        no computa (FAQ AEAT). Umbral informativo: {fmtEuro(String(aviso.umbralEUR))}.
       </p>
 
       {!aviso.aplica ? (
         <p className="text-sm text-slate-400">
-          No hay ubicaciones extranjeras con saldo. Marca una ubicación como extranjera para
-          activar el aviso.
+          No hay ubicaciones extranjeras (no autocustodia) con saldo. Marca una ubicación como
+          extranjera para activar el aviso.
         </p>
       ) : (
         <>
           {activosAValorar.length > 0 && (
             <div className="rounded-md border border-slate-200 p-3 dark:border-slate-800">
-              <p className="mb-2 text-sm font-medium">Precios de cierre a 31/12 (EUR por unidad)</p>
+              <p className="mb-2 text-sm font-medium">Precios manuales (EUR por unidad)</p>
               <div className="flex flex-wrap gap-3">
                 {activosAValorar.map((a) => (
                   <label key={a} className="text-sm">
@@ -562,6 +630,46 @@ function Aviso721({
             </div>
           )}
 
+          <CorteAviso
+            titulo={`Estimación anticipada · 20/10/${ejercicio}`}
+            subtitulo="Estimación anticipada — la referencia legal es el 31/12."
+            aviso={aviso.estimacion}
+            nombreUbic={nombreUbic}
+          />
+          <CorteAviso
+            titulo={`Corte normativo · 31/12/${ejercicio}`}
+            subtitulo="Fecha legal de referencia del saldo (presentación: 1-ene a 31-mar del año siguiente)."
+            aviso={aviso.normativo}
+            nombreUbic={nombreUbic}
+          />
+        </>
+      )}
+    </section>
+  )
+}
+
+/** Una tabla de aviso 721 para un corte concreto (estimación 20-oct o normativo 31-dic). */
+function CorteAviso({
+  titulo,
+  subtitulo,
+  aviso,
+  nombreUbic,
+}: {
+  titulo: string
+  subtitulo: string
+  aviso: AvisoSaldoExtranjero
+  nombreUbic: (r: string) => string
+}) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <h3 className="text-sm font-semibold">{titulo}</h3>
+        <p className="text-xs text-slate-400">{subtitulo}</p>
+      </div>
+      {aviso.celdas.length === 0 ? (
+        <p className="text-sm text-slate-400">Sin saldo en el extranjero a esta fecha.</p>
+      ) : (
+        <>
           <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
@@ -595,7 +703,6 @@ function Aviso721({
               </tfoot>
             </table>
           </div>
-
           <Banner tono={aviso.supera ? 'info' : 'exito'}>
             {aviso.supera ? (
               <>
@@ -606,10 +713,10 @@ function Aviso721({
             ) : (
               <>El saldo valorado en el extranjero no supera el umbral informativo.</>
             )}
-            {aviso.haySinValorar && ' Hay activos sin precio de cierre: el total es un mínimo.'}
+            {aviso.haySinValorar && ' Hay activos sin precio: el total es un mínimo.'}
           </Banner>
         </>
       )}
-    </section>
+    </div>
   )
 }

@@ -541,7 +541,7 @@ export function DiarioPage() {
                   aria-rowindex={item.index + 1}
                   onClick={() => setFilaActiva(item.index)}
                   className={
-                    'cursor-default outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500 ' +
+                    'cursor-default outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ' +
                     (activa
                       ? 'bg-amber-50 dark:bg-amber-950/30'
                       : 'hover:bg-slate-50 dark:hover:bg-slate-900/60')

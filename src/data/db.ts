@@ -18,6 +18,7 @@ import {
   type ApunteRegistro,
   type JustificanteRegistro,
   type ParametrosRegistro,
+  type PrecioRegistro,
   CLAVE_PARAMETROS,
 } from './tipos'
 
@@ -30,6 +31,7 @@ export class LibroDB extends Dexie {
   justificantes!: Table<JustificanteRegistro, string>
   activos!: Table<Activo, string>
   parametros!: Table<ParametrosRegistro, string>
+  precios!: Table<PrecioRegistro, string>
 
   constructor() {
     super('libro-hesperides')
@@ -127,6 +129,40 @@ export class LibroDB extends Dexie {
         for (const j of previos) {
           const nueva = REASIGNAR[j.rutaConvencional as string]
           if (nueva) await tx.table('justificantes').update(j.id, { rutaConvencional: nueva })
+        }
+      })
+
+    // ── Esquema v6 (P9.2): nueva tabla `precios` para los precios manuales de la pestaña
+    //    Cartera (local-first: los teclea el alumno, nunca se obtienen por red). Clave
+    //    primaria: `activo`. Tabla nueva y vacía; no requiere migración de datos previos.
+    this.version(6).stores({
+      apuntes: 'uid, id, fechaHora, tipo, activoEntrada, activoSalida',
+      ubicaciones: 'id, nombre, kyc',
+      justificantes: 'id, apunteUid, rutaConvencional',
+      activos: 'simbolo',
+      parametros: 'clave',
+      precios: 'activo',
+    })
+
+    // ── Esquema v7 (derivada D2, P9.4): el subtipo de PÉRDIDA (error/robo/estafa) es un campo
+    //    de datos nuevo. Los apuntes PÉRDIDA anteriores no lo tienen: se migran a
+    //    `sin-clasificar` con un aviso suave para completarlo. No cambia índices (subtipoPerdida
+    //    no se indexa) ni ningún cálculo del motor.
+    this.version(7)
+      .stores({
+        apuntes: 'uid, id, fechaHora, tipo, activoEntrada, activoSalida',
+        ubicaciones: 'id, nombre, kyc',
+        justificantes: 'id, apunteUid, rutaConvencional',
+        activos: 'simbolo',
+        parametros: 'clave',
+        precios: 'activo',
+      })
+      .upgrade(async (tx) => {
+        const previos = await tx.table('apuntes').toArray()
+        for (const ap of previos) {
+          if (ap.tipo === 'PERDIDA' && ap.subtipoPerdida === undefined) {
+            await tx.table('apuntes').update(ap.uid, { subtipoPerdida: 'sin-clasificar' })
+          }
         }
       })
   }

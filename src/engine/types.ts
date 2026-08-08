@@ -276,6 +276,14 @@ export interface Ubicacion {
   extranjero?: boolean
   /** País de radicación (informativo, para el aviso 721). Texto libre del alumno. */
   pais?: string
+  /**
+   * ¿Es una ubicación de AUTOCUSTODIA (el alumno controla las claves: Ledger, Trezor,
+   * wallet de software propia, nodo…)? (Derivada D2, P9.4.) Atributo DECLARATIVO igual que
+   * `extranjero`: NO altera ningún cálculo del motor. Las wallets de autocustodia NO computan
+   * para el aviso 721 (FAQ AEAT del modelo 721: solo se informa de monedas custodiadas por
+   * terceros que gestionan claves ajenas), y la UI nunca les sugiere la marca `extranjero`.
+   */
+  autocustodia?: boolean
 }
 
 // ────────────────────────────────────────────────────────────────────────────

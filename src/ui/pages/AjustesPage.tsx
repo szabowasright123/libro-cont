@@ -27,6 +27,8 @@ import {
   snapshotActual,
   restaurarSnapshot,
   borrarTodo,
+  borrarCasoDemo,
+  estaDemoCargada,
   listarJustificantes,
   espacioArchivoUsado,
 } from '../../data/repositorio'
@@ -105,6 +107,7 @@ export function AjustesPage() {
       )}
 
       <SeccionAlmacenamiento />
+      <SeccionCasoDemo accion={accion} ocupado={ocupado} aviso={aviso} />
       <SeccionExcel accion={accion} ocupado={ocupado} setInforme={setInforme} aviso={aviso} />
       <SeccionCsv accion={accion} ocupado={ocupado} setInforme={setInforme} aviso={aviso} />
       <SeccionCopia accion={accion} ocupado={ocupado} aviso={aviso} />
@@ -163,6 +166,41 @@ function SeccionDesarrollo({ accion, ocupado, aviso }: Props) {
         </button>
       </div>
     </section>
+  )
+}
+
+// ── Caso de ejemplo (mini-caso 2024) ────────────────────────────────────────
+
+/**
+ * Borrado limpio del CASO DE EJEMPLO (P9.3): deja el Libro vacío (misma mecánica que el
+ * borrado total). La sección solo se muestra cuando la demo está cargada.
+ */
+function SeccionCasoDemo({ accion, ocupado, aviso }: Props) {
+  const demoQ = useLiveQuery(() => estaDemoCargada(), [])
+  const cargada = demoQ.estado === 'listo' ? demoQ.datos : false
+  if (!cargada) return null
+
+  const borrar = () =>
+    accion(async () => {
+      if (
+        !window.confirm(
+          'Se borrará el caso de ejemplo y el Libro quedará vacío. ¿Continuar?',
+        )
+      )
+        return
+      await borrarCasoDemo()
+      aviso('exito', 'Caso de ejemplo borrado. El Libro está vacío y listo para tus datos.')
+    })
+
+  return (
+    <Seccion
+      titulo="Caso de ejemplo cargado"
+      desc="Estás viendo el mini-caso 2024 de demostración. Bórralo cuando quieras empezar con tus propios datos; el Libro quedará vacío."
+    >
+      <button type="button" className={BTN_SEC} onClick={borrar} disabled={ocupado}>
+        Borrar caso de ejemplo
+      </button>
+    </Seccion>
   )
 }
 

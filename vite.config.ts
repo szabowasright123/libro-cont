@@ -34,15 +34,15 @@ export default defineConfig(({ mode }) => ({
         name: 'Libro Hespérides',
         short_name: 'Hespérides',
         description:
-          'Libro contable y Archivo probatorio del Taller de Bitcoin (Universidad de las Hespérides). App local-first.',
+          'Libro contable y Archivo probatorio del Taller de Bitcoin. App local-first.',
         lang: 'es-ES',
         dir: 'ltr',
         start_url: './',
         scope: './',
         display: 'standalone',
         orientation: 'any',
-        background_color: '#0f172a',
-        theme_color: '#0f172a',
+        background_color: '#1c1917',
+        theme_color: '#1c1917',
         categories: ['finance', 'education', 'productivity'],
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

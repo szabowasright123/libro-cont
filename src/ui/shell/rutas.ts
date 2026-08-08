@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 export type Ruta =
   | 'inicio'
   | 'diario'
+  | 'cartera'
   | 'archivo'
   | 'trazabilidad'
   | 'fiscal'
@@ -20,6 +21,7 @@ export type Ruta =
 export const RUTAS: { ruta: Ruta; etiqueta: string }[] = [
   { ruta: 'inicio', etiqueta: 'Inicio' },
   { ruta: 'diario', etiqueta: 'Diario' },
+  { ruta: 'cartera', etiqueta: 'Cartera' },
   { ruta: 'archivo', etiqueta: 'Archivo' },
   { ruta: 'trazabilidad', etiqueta: 'Trazabilidad' },
   { ruta: 'fiscal', etiqueta: 'Fiscal' },

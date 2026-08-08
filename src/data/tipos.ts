@@ -32,12 +32,22 @@ export type ApunteRegistro = Omit<Apunte, 'id' | 'rectificaA'> & {
   id: string
   rectificaAUid?: string
   creadoEn: string
+  subtipoPerdida?: SubtipoPerdida
 }
 
 /** Borrador de apunte que produce el formulario (sin uid/id/creadoEn todavía). */
 export type BorradorApunte = Omit<Apunte, 'id' | 'rectificaA'> & {
   rectificaAUid?: string
+  subtipoPerdida?: SubtipoPerdida
 }
+
+/**
+ * Subtipo de una PÉRDIDA (derivada D2, P9.4). Es un campo de la CAPA DE DATOS, NO del motor:
+ * determina el aviso de criterio fiscal y el checklist probatorio que se muestran, pero no
+ * altera ningún cálculo (saldos, FIFO ni cuadre). `sin-clasificar` es el valor de los apuntes
+ * PÉRDIDA anteriores a esta versión (migración v7) y de los nuevos hasta que el alumno elige.
+ */
+export type SubtipoPerdida = 'error' | 'robo' | 'estafa' | 'sin-clasificar'
 
 /**
  * Registro de justificante tal y como se guarda en IndexedDB.
@@ -66,4 +76,22 @@ export interface ParametrosRegistro {
    * los conserva sin pérdida (P4, punto 4). No indexado: es un campo de datos.
    */
   cuadreReal?: SaldoRealDeclarado[]
+  /**
+   * Marca de que el Libro contiene el CASO DE EJEMPLO (mini-caso 2024, P9.3). Permite
+   * avisar en Inicio de que se está viendo la demo y ofrecer su borrado limpio en Ajustes.
+   */
+  demoCargada?: boolean
+}
+
+/**
+ * Registro de un PRECIO MANUAL de un activo (pestaña Cartera, P9.2). Local-first: lo teclea
+ * el alumno; NUNCA se obtiene por red. EUR no tiene precio (vale 1 implícitamente).
+ *  - `activo`: símbolo (clave primaria).
+ *  - `precioEur`: precio en EUR por unidad, como cadena decimal interna (punto).
+ *  - `fechaISO`: fecha en que se introdujo el precio (para el chip «introducidos el …»).
+ */
+export interface PrecioRegistro {
+  activo: string
+  precioEur: string
+  fechaISO: string
 }

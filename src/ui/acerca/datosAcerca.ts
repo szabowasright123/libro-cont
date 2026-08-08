@@ -22,5 +22,5 @@ export const LICENCIA_NOTA: string | null =
 /** URL del repositorio. `null` → no se muestra enlace (marcador informativo). */
 export const REPO_URL: string | null = null
 
-/** Marco académico del taller (estructural, no es autoría). */
-export const MARCO = 'Universidad de las Hespérides · Taller de Contabilidad, Trazabilidad y Fiscalidad en Bitcoin (Ed. 2026)'
+/** Marco del taller (estructural, no es autoría). */
+export const MARCO = 'Taller de Contabilidad, Trazabilidad y Fiscalidad en Bitcoin (Ed. 2026)'

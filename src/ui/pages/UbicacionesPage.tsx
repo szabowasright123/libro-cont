@@ -5,10 +5,11 @@
  * es editable ni borrable. Una ubicación con apuntes asociados no puede borrarse
  * (integridad referencial en el repositorio).
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { TipoUbicacion, Ubicacion } from '../../engine/types'
 import { UBICACION_EXTERIOR } from '../../engine/types'
 import { VIAS_EVIDENCIA, viaEvidencia } from '../../engine/trazabilidad'
+import { sugerir721, NOTA_CRITERIO_721, NOTA_AUTOCUSTODIA_721 } from '../../data/entidades-721'
 import {
   listarUbicaciones,
   crearUbicacion,
@@ -39,6 +40,7 @@ interface FormUbic {
   notasEvidencia: string
   extranjero: boolean
   pais: string
+  autocustodia: boolean
 }
 
 const FORM_VACIO: FormUbic = {
@@ -52,6 +54,7 @@ const FORM_VACIO: FormUbic = {
   notasEvidencia: '',
   extranjero: false,
   pais: '',
+  autocustodia: false,
 }
 
 export function UbicacionesPage() {
@@ -61,6 +64,10 @@ export function UbicacionesPage() {
   const [form, setForm] = useState<FormUbic>(FORM_VACIO)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [verPorque, setVerPorque] = useState(false)
+
+  // Sugerencia del perímetro 721 a partir del nombre (lista-semilla editable; nunca impone).
+  const sugerencia = useMemo(() => sugerir721(form.nombre), [form.nombre])
 
   const abrirNueva = () => {
     setEditando(null)
@@ -82,6 +89,7 @@ export function UbicacionesPage() {
       notasEvidencia: u.notasEvidencia ?? '',
       extranjero: u.extranjero ?? false,
       pais: u.pais ?? '',
+      autocustodia: u.autocustodia ?? false,
     })
     setError(null)
     setAbierto(true)
@@ -103,8 +111,10 @@ export function UbicacionesPage() {
       ...(form.notasEvidencia.trim() ? { notasEvidencia: form.notasEvidencia.trim() } : {}),
       // Siempre explícitos: al editar, desmarcar «extranjero» debe borrar el valor previo
       // (Dexie.update fusiona: `undefined` elimina la clave; omitirla la dejaría intacta).
-      extranjero: form.extranjero,
-      pais: form.extranjero && form.pais.trim() ? form.pais.trim() : undefined,
+      // La autocustodia NO computa para el 721: si está marcada, «extranjero» queda en falso.
+      extranjero: form.autocustodia ? false : form.extranjero,
+      pais: !form.autocustodia && form.extranjero && form.pais.trim() ? form.pais.trim() : undefined,
+      autocustodia: form.autocustodia,
     }
     try {
       if (editando) {
@@ -294,6 +304,25 @@ export function UbicacionesPage() {
             </label>
           </div>
 
+          {/* Autocustodia: si controlas tú las claves, NO computa para el 721 (FAQ AEAT). */}
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">¿Autocustodia (controlas las claves)?</span>
+              <select
+                className={INPUT}
+                value={form.autocustodia ? 'si' : 'no'}
+                onChange={(e) => {
+                  const auto = e.target.value === 'si'
+                  // Al marcar autocustodia, se limpia «extranjero» (no computa para el 721).
+                  setForm((f) => ({ ...f, autocustodia: auto, extranjero: auto ? false : f.extranjero }))
+                }}
+              >
+                <option value="no">No</option>
+                <option value="si">Sí (Ledger, Trezor, wallet propia, nodo…)</option>
+              </select>
+            </label>
+          </div>
+
           {/* Radicación en el extranjero (aviso 721 del módulo fiscal). */}
           <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm">
@@ -301,6 +330,7 @@ export function UbicacionesPage() {
               <select
                 className={INPUT}
                 value={form.extranjero ? 'si' : 'no'}
+                disabled={form.autocustodia}
                 onChange={(e) => setForm({ ...form, extranjero: e.target.value === 'si' })}
               >
                 <option value="no">No</option>
@@ -312,16 +342,58 @@ export function UbicacionesPage() {
               <input
                 className={INPUT}
                 value={form.pais}
-                disabled={!form.extranjero}
+                disabled={!form.extranjero || form.autocustodia}
                 onChange={(e) => setForm({ ...form, pais: e.target.value })}
                 placeholder="p. ej. Malta"
               />
             </label>
           </div>
-          <p className="-mt-1 text-xs text-slate-400">
+          <p className="-mt-1 text-xs text-stone-400">
             Solo para el aviso informativo del modelo 721 (saldos &gt; 50.000 € en el extranjero a
             31/12). No altera ningún cálculo del Libro.
           </p>
+
+          {/* Sugerencia por lista-semilla (P9.4): nunca impone; el alumno decide. */}
+          {form.autocustodia ? (
+            <Banner tono="info">{NOTA_AUTOCUSTODIA_721}</Banner>
+          ) : (
+            sugerencia && (
+              <Banner tono="info">
+                <div className="space-y-1">
+                  {sugerencia.sugerirExtranjero ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>
+                        Parece <strong>{sugerencia.entidad}</strong> ({sugerencia.situacion}).
+                        Sugerencia: marcar «extranjero» para el aviso 721.
+                      </span>
+                      {!form.extranjero && (
+                        <button
+                          type="button"
+                          className={BTN_SEC}
+                          onClick={() => setForm((f) => ({ ...f, extranjero: true }))}
+                        >
+                          Marcar extranjero
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <span>
+                      <strong>{sugerencia.entidad}</strong> está establecida en España (
+                      {sugerencia.situacion}): declara 172/173; no la marques «extranjero».
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="text-xs text-brand-600 underline underline-offset-2 hover:text-brand-700"
+                    onClick={() => setVerPorque((v) => !v)}
+                  >
+                    ¿por qué?
+                  </button>
+                  {verPorque && <p className="text-xs text-stone-500">{NOTA_CRITERIO_721}</p>}
+                </div>
+              </Banner>
+            )
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm">

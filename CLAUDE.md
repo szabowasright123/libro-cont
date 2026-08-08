@@ -1,6 +1,6 @@
 # CLAUDE.md — Libro Hespérides
 
-App web local-first del Taller de Contabilidad, Trazabilidad y Fiscalidad en Bitcoin (Universidad de las Hespérides, Ed. 2026). Hace amigable el método del taller: el **Libro** (diario contable con SALDOS, FIFO y CUADRE calculados) y el **Archivo** (expediente probatorio). Herramienta de trabajo real del alumno, no un juguete didáctico.
+App web local-first del Taller de Contabilidad, Trazabilidad y Fiscalidad en Bitcoin (Ed. 2026). Hace amigable el método del taller: el **Libro** (diario contable con SALDOS, FIFO y CUADRE calculados) y el **Archivo** (expediente probatorio). Herramienta de trabajo real del alumno, no un juguete didáctico.
 
 ## Reglas de oro (violarlas es un bug)
 

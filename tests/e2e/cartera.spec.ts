@@ -1,0 +1,58 @@
+import { test, expect, type Page, type Dialog } from '@playwright/test'
+
+/**
+ * E2E de la pestaña Cartera y el caso de ejemplo (P9.2 / P9.3):
+ *   Inicio → «Cargar caso de ejemplo» → Cartera → editar un precio → el valor se recalcula.
+ * Verifica el camino local-first completo (precios manuales, sin red) y la reactividad.
+ */
+
+function aceptarDialogos(page: Page) {
+  page.on('dialog', (d: Dialog) => void d.accept())
+}
+
+async function descartarAvisoPwa(page: Page) {
+  const cerrar = page.getByRole('button', { name: 'Descartar aviso' })
+  await cerrar.click({ timeout: 8000 }).catch(() => {})
+}
+
+async function irA(page: Page, seccion: string) {
+  await page
+    .getByRole('navigation', { name: 'Secciones' })
+    .getByRole('button', { name: seccion, exact: true })
+    .click()
+}
+
+test('Cartera: cargar caso de ejemplo, ver la valoración y recalcular al editar un precio', async ({
+  page,
+}) => {
+  aceptarDialogos(page)
+  await page.goto('./')
+  await expect(page.getByText(/abierta ·/)).toBeVisible()
+  await descartarAvisoPwa(page)
+
+  // 1 · Cargar el caso de ejemplo desde Inicio (navega al Diario).
+  await page.getByRole('button', { name: 'Cargar caso de ejemplo (mini-caso 2024)' }).click()
+  await expect(page.locator('tr[data-fila]').first()).toBeVisible()
+
+  // 2 · Ir a Cartera: valor estimado 48.361,6 € con los precios de demostración.
+  await irA(page, 'Cartera')
+  await expect(page.getByRole('heading', { name: 'Cartera' })).toBeVisible()
+  await expect(page.getByText('48.361,6 €').first()).toBeVisible()
+
+  // 3 · Editar el precio manual de BTC: 100.000 → 120.000. El valor de BTC pasa a 48.816 €.
+  const precioBtc = page.getByLabel('Precio manual de BTC en euros')
+  await precioBtc.fill('120000')
+  await precioBtc.press('Enter')
+
+  // La fila de BTC (0,4068 × 120.000 = 48.816) y el nuevo total (56.497,6) se reflejan.
+  // Se afirma sobre la celda de la tabla y la tarjeta (visibles), no sobre el <title> del SVG.
+  await expect(page.getByRole('cell', { name: '48.816 €', exact: true })).toBeVisible()
+  await expect(
+    page.getByText('Valor estimado').locator('..').getByText('56.497,6 €'),
+  ).toBeVisible()
+
+  // 4 · El caso de ejemplo se puede borrar desde Ajustes (deja el Libro vacío).
+  await irA(page, 'Ajustes')
+  await page.getByRole('button', { name: 'Borrar caso de ejemplo' }).click()
+  await expect(page.getByText(/Caso de ejemplo borrado/)).toBeVisible()
+})

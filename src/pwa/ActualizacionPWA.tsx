@@ -39,7 +39,7 @@ export function ActualizacionPWA() {
             <button
               type="button"
               onClick={() => void updateServiceWorker(true)}
-              className="shrink-0 rounded-md bg-amber-600 px-3 py-1.5 font-medium text-white hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              className="shrink-0 rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               Actualizar
             </button>

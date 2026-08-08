@@ -1,9 +1,9 @@
 {
   "name": "libro-hesperides",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
-  "description": "Libro Hespérides — Libro contable y Archivo probatorio del Taller de Bitcoin (Universidad de las Hespérides). App web local-first.",
+  "description": "Libro Hespérides — Libro contable y Archivo probatorio del Taller de Bitcoin. App web local-first.",
   "author": "Javier B.",
   "license": "AGPL-3.0",
   "scripts": {

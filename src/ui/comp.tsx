@@ -7,23 +7,23 @@ import { type ReactNode, useEffect } from 'react'
 /** Clases de botón reutilizables (Tailwind). */
 export const BTN =
   'inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ' +
-  'transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ' +
+  'transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ' +
   'disabled:cursor-not-allowed disabled:opacity-50'
-export const BTN_PRIMARIO = `${BTN} bg-amber-600 text-white hover:bg-amber-700`
+export const BTN_PRIMARIO = `${BTN} bg-brand-600 text-white hover:bg-brand-700`
 export const BTN_SEC =
-  `${BTN} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 ` +
+  `${BTN} border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 ` +
   'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
 export const BTN_PELIGRO = `${BTN} border border-red-300 bg-white text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:bg-slate-900 dark:text-red-400`
 
 /** Clases para una tecla (`<kbd>`) en textos de ayuda. */
 export const KBD =
-  'rounded border border-slate-300 bg-slate-100 px-1 font-mono text-[10px] text-slate-600 ' +
+  'rounded border border-stone-300 bg-stone-100 px-1 font-mono text-[10px] text-stone-600 ' +
   'dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300'
 
 /** Clases de input/select reutilizables. */
 export const INPUT =
-  'w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 ' +
-  'shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 ' +
+  'w-full rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm text-stone-900 ' +
+  'shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 ' +
   'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 disabled:opacity-60'
 
 /** Ventana modal accesible sencilla (cierra con Escape y clic en el fondo). */

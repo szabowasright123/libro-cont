@@ -40,34 +40,34 @@ export function UnidadManual({ ruta }: { ruta: Ruta }) {
   return (
     <aside
       aria-label="Unidad del manual"
-      className="rounded-lg border border-amber-200 bg-amber-50/60 text-sm dark:border-amber-900/50 dark:bg-amber-950/20"
+      className="rounded-lg border border-brand-200 bg-brand-50/60 text-sm dark:border-amber-900/50 dark:bg-amber-950/20"
     >
       <button
         type="button"
         onClick={alternar}
         aria-expanded={!plegado}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
-        <span aria-hidden="true" className="text-amber-600 dark:text-amber-400">
+        <span aria-hidden="true" className="text-brand-600 dark:text-amber-400">
           📘
         </span>
-        <span className="font-semibold text-amber-900 dark:text-amber-100">
+        <span className="font-semibold text-brand-700 dark:text-amber-100">
           Unidad del manual
         </span>
-        <span className="text-xs font-normal text-amber-700/80 dark:text-amber-300/70">
+        <span className="text-xs font-normal text-stone-500 dark:text-amber-300/70">
           · {unidad.bloque}
         </span>
-        <span aria-hidden="true" className="ml-auto text-amber-600 dark:text-amber-400">
+        <span aria-hidden="true" className="ml-auto text-brand-600 dark:text-amber-400">
           {plegado ? '▸' : '▾'}
         </span>
       </button>
       {!plegado && (
-        <div className="space-y-2 px-3 pb-3 text-amber-900/90 dark:text-amber-100/80">
+        <div className="space-y-2 px-3 pb-3 text-stone-700 dark:text-amber-100/80">
           <p className="font-medium">{unidad.pista}</p>
           {unidad.texto ? (
             <p className="text-[13px] leading-relaxed">{unidad.texto}</p>
           ) : (
-            <p className="text-xs text-amber-700/70 dark:text-amber-300/60">
+            <p className="text-xs text-stone-500 dark:text-amber-300/60">
               Texto de la unidad pendiente del literal del manual ({unidad.clave}).
             </p>
           )}

@@ -54,7 +54,7 @@ export function AcercaPage() {
           <Dato termino="Autoría">
             {AUTORIA ?? <Marcador>{'{{AUTOR}}'}</Marcador>}
           </Dato>
-          <Dato termino="Marco académico">{MARCO}</Dato>
+          <Dato termino="Marco del taller">{MARCO}</Dato>
           <Dato termino="Licencia">
             {LICENCIA ? (
               <span>
@@ -71,7 +71,7 @@ export function AcercaPage() {
                 href={REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-amber-700 underline underline-offset-2 hover:text-amber-800 dark:text-amber-400"
+                className="text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-amber-400"
               >
                 {REPO_URL}
               </a>
@@ -96,7 +96,7 @@ export function AcercaPage() {
           </p>
           <p>
             La app <strong>no hace ninguna llamada de red</strong> en funcionamiento: sin
-            analítica, sin servidores, sin nube. Nadie —tampoco la Universidad ni el autor— recibe
+            analítica, sin servidores, sin nube. Nadie —tampoco el autor— recibe
             tus datos. Funciona igual en modo avión.
           </p>
           <p>

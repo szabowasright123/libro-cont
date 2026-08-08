@@ -4,10 +4,51 @@ Todas las versiones notables de la app. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/); versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.1.0] — 2026-08-08
+
+Identidad visual propia, visión de cartera y onboarding con un clic (fase P9). El **motor**
+(`src/engine`) y los **golden tests** del mini-caso 2024 quedan intactos; todo lo nuevo vive
+en capas de datos/UI que **leen** los resultados del motor. Sigue siendo **local-first**: cero
+llamadas de red en runtime.
+
+### Identidad visual «naranja sutil» (P9.1)
+
+- Nueva paleta: base neutra cálida (`stone`) + **naranja bitcoin como acento** (`brand`) en
+  logo, pill activa del menú, números de paso, enlaces/CTA y focus ring. El semáforo del
+  CUADRE no cambia.
+- Cabecera con icono de la app + wordmark y menú tipo *pill bar*; página de inicio con kicker
+  y pasos acentuados. Icono de la PWA sobre base `#1c1917` (PNG regenerados) y `theme-color`
+  coherente.
+
+### Nueva pestaña «Cartera» (P9.2)
+
+- Vista de cartera **local-first con precios manuales** (prohibida cualquier cotización por
+  red): valor estimado, coste FIFO restante, GyP realizada del ejercicio y **plusvalía latente
+  (cripto)** «no realizada — no tributa aún». Todo sale del motor + el precio que teclea el
+  alumno; nueva tabla Dexie `precios`.
+- Gráficos SVG propios (donut de distribución y barras de GyP por ejercicio) con colores fijos
+  por entidad, y tabla de posiciones con precio editable en línea.
+
+### Caso de ejemplo con un clic (P9.3)
+
+- Botón «Cargar caso de ejemplo (mini-caso 2024)» en Inicio (con precios de demostración) y
+  «Borrar caso de ejemplo» en Ajustes; aviso mientras la demo está cargada. Un test garantiza
+  que el dataset de la demo no diverge del golden.
+
+### Derivadas de la validación D1/D2 (P9.4)
+
+- **Pérdidas → BASE GENERAL:** el resumen fiscal rotula las pérdidas como «posible pérdida
+  patrimonial en BASE GENERAL, condicionada al expediente probatorio» (nunca ahorro), y el
+  formulario de PÉRDIDA pide el **subtipo** (error/extravío · robo · estafa) con su aviso de
+  criterio y checklist probatorio; los apuntes antiguos se migran a «sin clasificar».
+- **Aviso 721:** lista-semilla de entidades para **sugerir** (no imponer) la marca extranjero,
+  **exclusión de la autocustodia** del cómputo, y **doble fecha** (estimación a 20-oct y corte
+  normativo a 31-dic).
+
 ## [1.0.0] — 2026-08-06
 
 Primera versión estable para el alumnado del Taller de Contabilidad, Trazabilidad y
-Fiscalidad en Bitcoin (Universidad de las Hespérides, Ed. 2026). App web **local-first**:
+Fiscalidad en Bitcoin (Ed. 2026). App web **local-first**:
 los datos del alumno nunca salen de su navegador.
 
 ### Añadido en esta versión (P8 · Pulido y v1.0)

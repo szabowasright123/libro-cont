@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { abrirBaseDatos, db } from '../../data/db'
 import { TIPOS_OPERACION } from '../../engine/types'
 import { useLiveQuery } from '../../data/useLiveQuery'
+import { cargarCasoDemo, estaDemoCargada, libroVacio } from '../../data/repositorio'
+import { BTN_PRIMARIO, BTN_SEC } from '../comp'
 import { irA, type Ruta } from '../shell/rutas'
 
 type EstadoDB =
@@ -108,28 +110,61 @@ export function HomePage() {
   )
   const c = conteos.estado === 'listo' ? conteos.datos : null
 
+  const demoQ = useLiveQuery(async () => (listo ? estaDemoCargada() : false), [listo])
+  const demoCargada = demoQ.estado === 'listo' ? demoQ.datos : false
+
+  /** Carga el caso de ejemplo; si ya hay datos, pide confirmación no destructiva. */
+  const cargarDemo = async () => {
+    if (!(await libroVacio())) {
+      if (
+        !window.confirm(
+          'Ya tienes datos en el Libro. Cargar el caso de ejemplo REEMPLAZARÁ tu Libro actual ' +
+            'por el mini-caso 2024.\n\nAceptar = cargar el ejemplo · Cancelar = no tocar nada.',
+        )
+      )
+        return
+    }
+    await cargarCasoDemo()
+    irA('diario')
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-8 py-4">
       <header className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-wide text-amber-600 dark:text-amber-500">
-          Universidad de las Hespérides · Taller de Bitcoin 2026
+        <p className="text-sm font-semibold uppercase tracking-widest text-brand-600">
+          Taller de <span className="text-brand-500">₿</span>itcoin 2026
         </p>
-        <h1 className="text-3xl font-bold tracking-tight">Libro Hespérides</h1>
-        <p className="text-slate-600 dark:text-slate-400">
+        <h1 className="text-3xl font-bold tracking-tight text-stone-900">Libro Hespérides</h1>
+        <p className="text-stone-600">
           El Libro (diario contable con saldos, FIFO y cuadre) y el Archivo probatorio.
           Local-first: tus datos no salen de tu navegador.
         </p>
       </header>
 
+      {/* Onboarding con un clic (P9.3): cargar el caso de ejemplo o empezar vacío. */}
+      <section className="flex flex-wrap items-center gap-3">
+        <button type="button" className={BTN_PRIMARIO} onClick={() => void cargarDemo()} disabled={!listo}>
+          Cargar caso de ejemplo (mini-caso 2024)
+        </button>
+        <button type="button" className={BTN_SEC} onClick={() => irA('ubicaciones')}>
+          Empezar con mi libro vacío
+        </button>
+        {demoCargada && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-0.5 text-xs text-brand-700">
+            Estás viendo el caso de ejemplo — se borra desde Ajustes
+          </span>
+        )}
+      </section>
+
       <section
         aria-live="polite"
-        className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
       >
         <dl className="grid gap-2 text-sm sm:grid-cols-2">
           <div className="flex items-center justify-between gap-4">
-            <dt className="text-slate-500">Base de datos local</dt>
+            <dt className="text-stone-500">Base de datos local</dt>
             <dd className="font-mono">
-              {estado.fase === 'abriendo' && <span className="text-slate-400">abriendo…</span>}
+              {estado.fase === 'abriendo' && <span className="text-stone-400">abriendo…</span>}
               {estado.fase === 'ok' && (
                 <span className="text-semaforo-ok">● abierta · v{estado.version}</span>
               )}
@@ -139,10 +174,8 @@ export function HomePage() {
             </dd>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <dt className="text-slate-500">Catálogo de tipos</dt>
-            <dd className="font-mono text-slate-700 dark:text-slate-300">
-              {TIPOS_OPERACION.length} tipos
-            </dd>
+            <dt className="text-stone-500">Catálogo de tipos</dt>
+            <dd className="font-mono text-stone-700">{TIPOS_OPERACION.length} tipos</dd>
           </div>
         </dl>
       </section>
@@ -150,10 +183,10 @@ export function HomePage() {
       {/* Guía integrada: el flujo del taller como recorrido clicable. */}
       <section aria-labelledby="flujo-titulo" className="space-y-3">
         <div>
-          <h2 id="flujo-titulo" className="text-lg font-semibold">
+          <h2 id="flujo-titulo" className="text-lg font-semibold text-stone-900">
             El método del taller, paso a paso
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-stone-500">
             Sigue el orden la primera vez; luego salta a donde necesites desde el menú.
           </p>
         </div>
@@ -165,27 +198,29 @@ export function HomePage() {
                 <button
                   type="button"
                   onClick={() => irA(paso.ruta)}
-                  className="group flex w-full items-center gap-4 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition-colors hover:border-amber-400 hover:bg-amber-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-600 dark:hover:bg-amber-950/20"
+                  className="group flex w-full items-center gap-4 rounded-lg border border-stone-200 bg-white p-3 text-left shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 >
                   <span
                     aria-hidden="true"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700"
                   >
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-semibold">{paso.titulo}</span>
-                    <span className="block text-sm text-slate-500">{paso.descripcion}</span>
+                    <span className="block font-semibold text-stone-900">{paso.titulo}</span>
+                    <span className="block text-sm text-stone-500">{paso.descripcion}</span>
                   </span>
                   {paso.conteo && (
                     <span className="shrink-0 text-right">
-                      <span className="block text-xl font-bold tabular-nums">{valor ?? '—'}</span>
-                      <span className="block text-xs text-slate-400">{paso.unidad}</span>
+                      <span className="block text-xl font-bold tabular-nums text-stone-900">
+                        {valor ?? '—'}
+                      </span>
+                      <span className="block text-xs text-stone-400">{paso.unidad}</span>
                     </span>
                   )}
                   <span
                     aria-hidden="true"
-                    className="shrink-0 text-slate-300 transition-colors group-hover:text-amber-500 dark:text-slate-600"
+                    className="shrink-0 text-stone-300 transition-colors group-hover:text-brand-500"
                   >
                     →
                   </span>
@@ -196,11 +231,11 @@ export function HomePage() {
         </ol>
       </section>
 
-      <p className="text-center text-xs text-slate-400">
+      <p className="text-center text-xs text-stone-400">
         <button
           type="button"
           onClick={() => irA('acerca')}
-          className="underline underline-offset-2 hover:text-slate-600 dark:hover:text-slate-300"
+          className="rounded underline underline-offset-2 hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
         >
           Acerca de Libro Hespérides
         </button>

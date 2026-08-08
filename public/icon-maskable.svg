@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Libro Hespérides">
   <!-- Variante maskable: fondo a sangre completa; contenido dentro de la zona segura
        (círculo central del 80 %). El sistema recorta la forma (círculo, squircle…). -->
-  <rect width="512" height="512" fill="#0f172a" />
+  <rect width="512" height="512" fill="#1c1917" />
   <g transform="translate(256 256) scale(0.62) translate(-256 -256)">
     <g fill="none" stroke="#f8fafc" stroke-width="20" stroke-linejoin="round" stroke-linecap="round">
       <path d="M96 140c60-28 120-28 160 0v232c-40-28-100-28-160 0z" />
