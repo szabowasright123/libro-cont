@@ -11,6 +11,12 @@ Identidad visual propia, visión de cartera y onboarding con un clic (fase P9). 
 en capas de datos/UI que **leen** los resultados del motor. Sigue siendo **local-first**: cero
 llamadas de red en runtime.
 
+### Licencia
+
+- El proyecto se publica bajo la **Personal Use Source License v1.0 (PUSL-1.0)**: código
+  fuente público, gratuito para uso personal; el uso profesional, empresarial o
+  institucional requiere licencia independiente (javier@legel.es). Ver `LICENSE`.
+
 ### Identidad visual «naranja sutil» (P9.1)
 
 - Nueva paleta: base neutra cálida (`stone`) + **naranja bitcoin como acento** (`brand`) en
@@ -93,7 +99,7 @@ los datos del alumno nunca salen de su navegador.
 
 ### Pendiente de validación (no bloquea la v1.0)
 
-- Convenciones fiscales marcadas `TODO-REVISION` (docs/DECISIONES.md, D1 y D2) y literales
+- Convenciones fiscales marcadas `TODO-REVISION` (registro de decisiones, D1 y D2; validadas el 8-8-2026) y literales
   `{{TEXTO-MANUAL}}` (docs/PENDIENTE_TEXTOS.md): las revisa el responsable del taller.
 - Autoría, licencia y URL del repositorio en «Acerca de» (marcadores `{{AUTOR}}`,
   `{{LICENCIA}}`, `{{REPO-URL}}` en `src/ui/acerca/datosAcerca.ts`).

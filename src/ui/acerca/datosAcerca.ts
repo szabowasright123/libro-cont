@@ -10,14 +10,16 @@
  */
 
 /** Titular / autoría de la obra. `null` → se muestra el marcador {{AUTOR}}. */
-export const AUTORIA: string | null = 'Javier B.'
+export const AUTORIA: string | null = 'Javier Bravezo Durán'
 
 /** Licencia declarada. `null` → se muestra el marcador {{LICENCIA}}. */
-export const LICENCIA: string | null = 'AGPL-3.0'
+export const LICENCIA: string | null = 'PUSL-1.0'
 
 /** Texto/nota de licencia opcional (una línea). */
 export const LICENCIA_NOTA: string | null =
-  'GNU Affero General Public License v3.0 — ver el fichero LICENSE del repositorio.'
+  'Personal Use Source License v1.0 — código fuente público: gratuito para uso personal; ' +
+  'el uso profesional, empresarial o institucional requiere licencia (javier@legel.es). ' +
+  'Ver el fichero LICENSE del repositorio.'
 
 /** URL del repositorio. `null` → no se muestra enlace (marcador informativo). */
 export const REPO_URL: string | null = null

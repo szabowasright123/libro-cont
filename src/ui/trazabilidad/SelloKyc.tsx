@@ -11,17 +11,17 @@ import type { Origen } from '../../engine/trazabilidad'
 const CONFIG = {
   kyc: {
     texto: 'KYC',
-    icono: '🛡',
-    titulo: 'Origen con KYC (vía identificada)',
+    icono: '\u{1F6E1}',
+    titulo: 'Origen identificado (KYC): la v\u00eda conoce tu identidad',
     clases:
-      'border-green-300 bg-green-50 text-green-800 dark:border-green-900/50 dark:bg-green-950/40 dark:text-green-300',
+      'border-stone-300 bg-stone-100 text-stone-700 dark:border-stone-700 dark:bg-stone-800/60 dark:text-stone-300',
   },
   noKyc: {
     texto: 'no-KYC',
-    icono: '△',
-    titulo: 'Origen sin KYC (vía no identificada)',
+    icono: '\u{1F464}',
+    titulo: 'Origen sin KYC: privacidad preservada por defecto',
     clases:
-      'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300',
+      'border-brand-200 bg-brand-50 text-brand-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300',
   },
 } as const
 

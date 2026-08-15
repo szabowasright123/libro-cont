@@ -7,7 +7,7 @@
  * Sobre esa descomposición construye la cadena probatoria hacia atrás de un saldo elegido
  * (apuntes que lo forman → lotes de origen → justificantes → huecos).
  *
- * CONVENCIÓN DE MEZCLA (documentada y marcada TODO-REVISION en docs/DECISIONES.md, D1):
+ * CONVENCIÓN DE MEZCLA (documentada y VALIDADA (2026-08-08) en el registro de decisiones del proyecto, D1):
  * es una capa APARTE del motor FIFO oficial (Regla de oro 8: cola única global, sin
  * ubicación). La cola global calcula GyP; la trazabilidad necesita saber en qué ubicación
  * está cada parte, así que mantiene una cola FIFO POR UBICACIÓN de «parcelas», cada una con
@@ -204,7 +204,7 @@ type CantidadTexto = string
 
 /** Clave estable ubicación|activo. */
 function clave(ubic: RefUbicacion, activo: SimboloActivo): string {
-  return `${ubic} ${activo}`
+  return `${ubic}\u0000${activo}`
 }
 
 /**
@@ -261,7 +261,7 @@ class Colas {
   /** Todas las claves (ubicación × activo) con alguna parcela (viva o ya consumida). */
   claves(): { ubicacion: RefUbicacion; activo: SimboloActivo }[] {
     return [...this.mapa.keys()].map((k) => {
-      const [ubicacion, activo] = k.split(' ') as [RefUbicacion, SimboloActivo]
+      const [ubicacion, activo] = k.split('\u0000') as [RefUbicacion, SimboloActivo]
       return { ubicacion, activo }
     })
   }

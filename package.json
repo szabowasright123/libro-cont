@@ -4,8 +4,8 @@
   "version": "1.1.0",
   "type": "module",
   "description": "Libro Hespérides — Libro contable y Archivo probatorio del Taller de Bitcoin. App web local-first.",
-  "author": "Javier B.",
-  "license": "AGPL-3.0",
+  "author": "Javier Bravezo Durán",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

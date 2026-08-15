@@ -40,7 +40,7 @@ automáticamente al hacer `push` a `main` (ver `.github/workflows/deploy.yml`).
 ## Textos pendientes (no bloquean, pero conviene revisar)
 
 - [ ] `{{TEXTO-MANUAL}}` de la guía y el módulo fiscal (docs/PENDIENTE_TEXTOS.md).
-- [ ] `TODO-REVISION` de las convenciones fiscales (docs/DECISIONES.md, D1 y D2).
+- [ ] `TODO-REVISION` de las convenciones fiscales (registro de decisiones, D1 y D2 — validadas el 8-8-2026).
 - [ ] Autoría, licencia y repositorio en `src/ui/acerca/datosAcerca.ts`
       (`{{AUTOR}}`, `{{LICENCIA}}`, `{{REPO-URL}}`).
 

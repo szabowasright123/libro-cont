@@ -127,10 +127,10 @@ export function InformeCadena({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-xs text-green-800 dark:border-green-900/50 dark:bg-green-950/40 dark:text-green-300">
+        <span className="rounded-full border border-stone-300 bg-stone-100 px-2 py-0.5 text-xs text-stone-700 dark:border-stone-700 dark:bg-stone-800/60 dark:text-stone-300">
           KYC: {fmtDecimal(cadena.kyc)} {cadena.activo}
         </span>
-        <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+        <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs text-brand-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
           no-KYC: {fmtDecimal(cadena.noKyc)} {cadena.activo}
         </span>
         <span className="text-xs text-slate-500">
@@ -156,8 +156,8 @@ export function InformeCadena({
       )}
 
       <p className="rounded-md border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-500 dark:border-slate-700">
-        Documento orientativo. El reparto KYC/no-KYC sigue la convención documentada
-        (docs/DECISIONES.md, D1), pendiente de validación fiscal. Es el índice del expediente que
+        Documento orientativo. El reparto KYC/no-KYC sigue la convención de
+        propagación del proyecto (D1), validada fiscalmente el 8-8-2026. Es el índice del expediente que
         reúne los justificantes del saldo, no una prueba por sí mismo.
       </p>
     </div>

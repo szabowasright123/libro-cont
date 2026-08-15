@@ -388,7 +388,7 @@ export function FormularioApunte({
               <span className="mb-1 block text-sm font-medium">Comisión</span>
               <div className="flex gap-2">
                 <input
-                  className={`${INPUT} flex-1`}
+                  className={`${INPUT} min-w-0 flex-1`}
                   inputMode="decimal"
                   placeholder="Cantidad"
                   aria-label="Cantidad de comisión"
@@ -396,7 +396,7 @@ export function FormularioApunte({
                   onChange={(e) => set({ comisionCantidad: e.target.value })}
                 />
                 <select
-                  className={`${INPUT} w-28`}
+                  className={`${INPUT} !w-28 shrink-0`}
                   aria-label="Activo de comisión"
                   value={borrador.comisionActivo ?? ''}
                   onChange={(e) => set({ comisionActivo: e.target.value || undefined })}
@@ -554,7 +554,7 @@ function GrupoActivoCantidad({
       </span>
       <div className="flex gap-2">
         <input
-          className={`${INPUT} flex-1`}
+          className={`${INPUT} min-w-0 flex-1`}
           inputMode="decimal"
           placeholder="Cantidad"
           aria-label={`Cantidad de ${idLado}`}
@@ -562,7 +562,7 @@ function GrupoActivoCantidad({
           onChange={(e) => onCantidad(e.target.value)}
         />
         <select
-          className={`${INPUT} w-28`}
+          className={`${INPUT} !w-28 shrink-0`}
           aria-label={`Activo de ${idLado}`}
           value={activo}
           onChange={(e) => onActivo(e.target.value)}

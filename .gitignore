@@ -36,3 +36,21 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# --- Internos de trabajo (no publicar) ---
+.claude/
+_to_delete/
+LEEME.txt
+docs/APP_TALLER_Plan_y_Hoja_de_Ruta.md
+docs/APP_TALLER_Prompts_Claude_Code.md
+docs/ORDEN_P9_IDENTIDAD_CARTERA_DEMO.md
+docs/COTEJO_F1.md
+docs/COTEJO_F4.md
+docs/INFORME_PUERTAS_1_2.md
+docs/ESTADO.md
+docs/PENDIENTE_TEXTOS.md
+docs/TEXTOS_MANUAL_RANURAS.md
+docs/DECISIONES.md
+
+# --- Material del taller (no público) ---
+docs/reference/PLANTILLA_TALLER.xlsx

@@ -4,7 +4,7 @@ App web local-first del Taller de Contabilidad, Trazabilidad y Fiscalidad en Bit
 
 ## Reglas de oro (violarlas es un bug)
 
-1. **La especificación del dominio es `docs/reference/DOMINIO.md`** y, en última instancia, `docs/reference/PLANTILLA_TALLER.xlsx` (las fórmulas del Excel son la fuente de verdad). Ante cualquier duda de cálculo, replicar el Excel.
+1. **La especificación del dominio es `docs/reference/DOMINIO.md`** y, en última instancia, `PLANTILLA_TALLER.xlsx` (las fórmulas del Excel son la fuente de verdad; la plantilla es material del taller y no se incluye en el repositorio público). Ante cualquier duda de cálculo, replicar el Excel.
 2. **Nunca aritmética float** para cantidades ni euros: siempre `decimal.js`. BTC con 8 decimales. Tolerancias del cuadre: verde ≤ 1e-8, ámbar ≤ 0,001.
 3. **Local-first estricto**: cero llamadas de red en runtime (sin analytics, sin CDNs en producción, sin APIs). Los datos del alumno no salen de su navegador salvo export explícito.
 4. **El motor (`src/engine/`) es TypeScript puro**: sin React, sin Dexie, sin browser APIs. Funciones deterministas estado→resultado. Toda lógica de cálculo vive ahí, jamás en componentes.

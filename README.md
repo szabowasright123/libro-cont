@@ -45,7 +45,25 @@ origen **GitHub Actions** (Settings → Pages → Build and deployment → Sourc
 La base del sitio es `/libro-cont/`; si el repo tuviera otro nombre, ajusta `base` en
 [`vite.config.ts`](vite.config.ts) o define `VITE_BASE`.
 
+## Licencia y autor
+
+**Libro Hespérides es software de código fuente público (source-available) para uso
+personal**, © 2026 **Javier Bravezo Durán**, bajo la
+[Personal Use Source License v1.0](LICENSE) (PUSL-1.0):
+
+- ✓ Puedes ver, auditar, estudiar, descargar, ejecutar y modificar el código, gratis,
+  para **uso personal**.
+- ✗ El **uso profesional, empresarial o institucional** (despachos, gestorías, empresas,
+  academias, SaaS…) requiere una licencia independiente: **javier@legel.es**.
+
+El nombre «Libro Hespérides» y sus logotipos no se conceden con la licencia (cláusula 11).
+Las contribuciones se rigen por [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Autor: **Javier Bravezo Durán** — asesoramiento fiscal y formación en Bitcoin ·
+[legelbitcoin.com](https://legelbitcoin.com/) · [@Javibrd](https://x.com/Javibrd) ·
+**javier@legel.es**
+
 ## Reglas del proyecto
 
 Ver [`CLAUDE.md`](CLAUDE.md) y [`docs/reference/DOMINIO.md`](docs/reference/DOMINIO.md).
-La fuente de verdad última del cálculo es `docs/reference/PLANTILLA_TALLER.xlsx`.
+La fuente de verdad última del cálculo es la plantilla oficial del taller (`PLANTILLA_TALLER.xlsx`, no incluida en el repositorio público; disponible para el alumnado del taller). La especificación derivada de ella es [`docs/reference/DOMINIO.md`](docs/reference/DOMINIO.md).

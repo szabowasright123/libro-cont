@@ -1,7 +1,7 @@
 /**
  * perdidaSubtipos.ts — catálogo de subtipos de PÉRDIDA (derivada D2, P9.4).
  *
- * Capa UI/datos: son LITERALES (resumen validado de docs/DECISIONES.md §D2.2) para mostrar en
+ * Capa UI/datos: son LITERALES (resumen del registro de decisiones del proyecto, §D2.2, validado el 8-8-2026) para mostrar en
  * el formulario de PÉRDIDA el aviso de criterio y el checklist probatorio que corresponde a cada
  * subtipo. NO es cálculo del motor: el subtipo no altera saldos, FIFO ni cuadre. El estado
  * probatorio «duro» lo sigue calculando `engine/archivo.ts` (intocable); esto es orientación.
@@ -19,18 +19,18 @@ export interface DefinicionSubtipoPerdida {
   readonly etiqueta: string
   /** Encaje fiscal en una línea (siempre BASE GENERAL cuando es computable). */
   readonly encajeFiscal: string
-  /** Aviso de criterio (resumen de DECISIONES §D2.2, con su fecha/consultas). */
+  /** Aviso de criterio (resumen del criterio validado, con su fecha/consultas). */
   readonly aviso: string
   /** Checklist probatorio orientativo del subtipo (qué reunir). */
   readonly checklist: readonly string[]
 }
 
 /** Fecha de criterio común de los subtipos (validación del responsable). */
-export const FECHA_CRITERIO_PERDIDAS = 'Criterio validado a 8-8-2026 (ver DECISIONES §D2.2).'
+export const FECHA_CRITERIO_PERDIDAS = 'Criterio validado a 8-8-2026.'
 
 /**
  * SUBTIPOS_PERDIDA — los tres subtipos del taller más `sin-clasificar` (migración/pendiente).
- * Textos: resumen validado de DECISIONES §D2.2. Deducibilidad SIEMPRE condicionada a prueba.
+ * Textos: resumen del criterio validado el 8-8-2026. Deducibilidad SIEMPRE condicionada a prueba.
  */
 export const SUBTIPOS_PERDIDA: Readonly<Record<SubtipoPerdida, DefinicionSubtipoPerdida>> = {
   'sin-clasificar': {

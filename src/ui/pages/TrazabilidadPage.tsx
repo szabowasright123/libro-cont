@@ -151,12 +151,12 @@ export function TrazabilidadPage() {
                   </span>
                 </div>
                 <div className="flex h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                  <div className="h-full bg-green-500" style={{ width: `${pctKyc}%` }} />
-                  <div className="h-full bg-amber-500" style={{ width: `${100 - pctKyc}%` }} />
+                  <div className="h-full bg-stone-400 dark:bg-stone-500" style={{ width: `${pctKyc}%` }} />
+                  <div className="h-full bg-brand-500" style={{ width: `${100 - pctKyc}%` }} />
                 </div>
                 <div className="mt-1.5 flex justify-between text-xs text-slate-500">
-                  <span className="text-green-700 dark:text-green-400">{fmtDecimal(String(v.kyc))} KYC</span>
-                  <span className="text-amber-700 dark:text-amber-400">{fmtDecimal(String(v.noKyc))} no-KYC</span>
+                  <span className="text-stone-600 dark:text-stone-400">{fmtDecimal(String(v.kyc))} KYC</span>
+                  <span className="text-brand-700 dark:text-amber-400">{fmtDecimal(String(v.noKyc))} no-KYC</span>
                 </div>
               </div>
             )
@@ -212,8 +212,8 @@ export function TrazabilidadPage() {
           </div>
         )}
         <p className="text-xs text-slate-400">
-          El reparto KYC/no-KYC sigue la convención de propagación documentada en{' '}
-          <span className="font-mono">docs/DECISIONES.md</span> (D1), pendiente de validación fiscal.
+          El reparto KYC/no-KYC sigue la convención de propagación del proyecto (D1),
+          validada fiscalmente el 8-8-2026.
         </p>
       </section>
 
@@ -267,10 +267,10 @@ function FilaCartera({
     <tr className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
       <td className="px-3 py-2 font-medium">{nombreUbic(celda.ubicacion)}</td>
       <td className="px-3 py-2">{celda.activo}</td>
-      <td className="px-3 py-2 text-right tabular-nums text-green-700 dark:text-green-400">
+      <td className="px-3 py-2 text-right tabular-nums text-stone-600 dark:text-stone-400">
         {fmtDecimal(celda.kyc)}
       </td>
-      <td className="px-3 py-2 text-right tabular-nums text-amber-700 dark:text-amber-400">
+      <td className="px-3 py-2 text-right tabular-nums text-brand-700 dark:text-amber-400">
         {fmtDecimal(celda.noKyc)}
       </td>
       <td className="px-3 py-2 text-right font-medium tabular-nums">

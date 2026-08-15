@@ -17,6 +17,7 @@ import type {
 import { CONCEPTOS_FISCALES, UMBRAL_721_EUR, AVISO_721, NOTA_172_173, MARCADOR_TEXTO } from '../../engine/fiscal'
 import type { MapaCasilla } from '../../data/casillas-2024'
 import type { RefUbicacion } from '../../engine/types'
+import { AUTORIA, LICENCIA } from '../acerca/datosAcerca'
 import { fmtDecimal, fmtEuro, fmtFecha, fmtFechaHora, fmtUbicacion } from '../formato'
 
 /** Escapa texto para insertarlo con seguridad en el HTML. */
@@ -283,6 +284,12 @@ export function construirInformeFiscalHtml(
     práctico de Renta del ejercicio). Los avisos 721 y 172/173 son informativos y nunca determinan
     una obligación.
   </div>
+
+  <p class="sub" style="margin-top: 10px">
+    Generado con <strong>Libro Hespérides</strong> — © ${esc(AUTORIA ?? '')} · aplicación
+    publicada bajo licencia ${esc(LICENCIA ?? '')} · legelbitcoin.com. La licencia cubre el código de la app; los
+    datos y este informe pertenecen a su titular.
+  </p>
 </body>
 </html>`
 }

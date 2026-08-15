@@ -188,7 +188,7 @@ export function construirInformeHtml(
   <div class="disclaimer">
     Documento orientativo generado por el Libro Hespérides a partir de los apuntes y
     justificantes registrados por el alumno. El reparto KYC/no-KYC sigue la convención de
-    propagación documentada (docs/DECISIONES.md, D1), pendiente de validación fiscal. No
+    propagación del proyecto (D1), validada fiscalmente el 8-8-2026. No
     constituye asesoramiento fiscal ni prueba por sí mismo: es el índice del expediente que
     reúne los justificantes que sostienen el saldo.
   </div>
