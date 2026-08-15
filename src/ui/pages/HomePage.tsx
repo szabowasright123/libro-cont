@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { abrirBaseDatos, db } from '../../data/db'
 import { TIPOS_OPERACION } from '../../engine/types'
 import { useLiveQuery } from '../../data/useLiveQuery'
-import { cargarCasoDemo, estaDemoCargada, libroVacio } from '../../data/repositorio'
-import { BTN_PRIMARIO, BTN_SEC } from '../comp'
+import { cargarCasoDemo, estaDemoCargada, estadoCopia, libroVacio } from '../../data/repositorio'
+import { necesitaRecordatorioCopia, textoRecordatorio } from '../../data/copias'
+import { Banner, BTN_PRIMARIO, BTN_SEC } from '../comp'
 import { irA, type Ruta } from '../shell/rutas'
 
 type EstadoDB =
@@ -58,7 +59,8 @@ const PASOS: Paso[] = [
   {
     ruta: 'trazabilidad',
     titulo: 'Cuadra y sigue el origen',
-    descripcion: 'Saldos por ubicación «con sello» KYC / no-KYC, reconciliados con la hoja SALDOS.',
+    descripcion:
+      'Teclea el saldo real de cada fuente (semáforo del cuadre) y sigue el origen KYC / no-KYC de cada saldo.',
   },
   {
     ruta: 'archivo',
@@ -113,13 +115,25 @@ export function HomePage() {
   const demoQ = useLiveQuery(async () => (listo ? estaDemoCargada() : false), [listo])
   const demoCargada = demoQ.estado === 'listo' ? demoQ.datos : false
 
+  // Recordatorio suave de copia de seguridad (P11). Nunca con la demo cargada (no son
+  // datos del alumno) y descartable por sesión.
+  const copiaQ = useLiveQuery(async () => (listo ? estadoCopia() : null), [listo])
+  const [copiaDescartada, setCopiaDescartada] = useState(false)
+  const recordatorio = useMemo(() => {
+    if (!c || c.apuntes === 0 || demoCargada) return null
+    if (copiaQ.estado !== 'listo' || copiaQ.datos === null) return null
+    const r = necesitaRecordatorioCopia(copiaQ.datos, c.apuntes, new Date().toISOString())
+    return r.necesita ? r : null
+  }, [c, demoCargada, copiaQ])
+
   /** Carga el caso de ejemplo; si ya hay datos, pide confirmación no destructiva. */
   const cargarDemo = async () => {
     if (!(await libroVacio())) {
       if (
         !window.confirm(
           'Ya tienes datos en el Libro. Cargar el caso de ejemplo REEMPLAZARÁ tu Libro actual ' +
-            'por el mini-caso 2024.\n\nAceptar = cargar el ejemplo · Cancelar = no tocar nada.',
+            'por el caso completo 2024–2025 de demostración.\n\n' +
+            'Aceptar = cargar el ejemplo · Cancelar = no tocar nada.',
         )
       )
         return
@@ -144,7 +158,7 @@ export function HomePage() {
       {/* Onboarding con un clic (P9.3): cargar el caso de ejemplo o empezar vacío. */}
       <section className="flex flex-wrap items-center gap-3">
         <button type="button" className={BTN_PRIMARIO} onClick={() => void cargarDemo()} disabled={!listo}>
-          Cargar caso de ejemplo (mini-caso 2024)
+          Cargar caso de ejemplo
         </button>
         <button type="button" className={BTN_SEC} onClick={() => irA('ubicaciones')}>
           Empezar con mi libro vacío
@@ -155,6 +169,24 @@ export function HomePage() {
           </span>
         )}
       </section>
+
+      {/* Recordatorio suave de copia de seguridad (P11): tus datos viven solo en este navegador. */}
+      {recordatorio && !copiaDescartada && (
+        <Banner tono="info" onCerrar={() => setCopiaDescartada(true)}>
+          <span>
+            {textoRecordatorio(recordatorio)} Tus datos viven solo en este navegador: descarga la
+            copia JSON en{' '}
+            <button
+              type="button"
+              onClick={() => irA('ajustes')}
+              className="font-semibold underline underline-offset-2 hover:text-brand-700"
+            >
+              Ajustes → Copia de seguridad
+            </button>
+            .
+          </span>
+        </Banner>
+      )}
 
       <section
         aria-live="polite"

@@ -24,7 +24,10 @@ import {
   UBICACIONES_CASO_DEMO,
   ACTIVOS_CASO_DEMO,
   PRECIOS_CASO_DEMO,
-} from './demo/mini-caso-demo'
+  JUSTIFICANTES_CASO_DEMO,
+  SUBTIPOS_PERDIDA_CASO_DEMO,
+  CUADRE_REAL_CASO_DEMO,
+} from './demo/caso-demo'
 import { renumerar, type CambioNumero } from './numeracion'
 import type { ContenidoLibro } from './import/contenido'
 import type {
@@ -520,6 +523,68 @@ export async function obtenerCuadreReal(): Promise<SaldoRealDeclarado[]> {
   return p?.cuadreReal ?? []
 }
 
+/**
+ * Declara (o actualiza) el SALDO REAL de una celda del cuadre (ubicación × activo), tal como
+ * lo teclea el alumno desde su fuente (exchange, wallet). Un `saldoReal` vacío BORRA la
+ * declaración de esa celda (la fila del cuadre vuelve a «sin declarar»). El semáforo no se
+ * calcula aquí: eso es del motor (engine/cuadre.ts).
+ */
+export async function guardarSaldoRealDeclarado(
+  ubicacion: string,
+  activo: string,
+  saldoReal: string,
+  notas?: string,
+): Promise<void> {
+  const prev = await db.parametros.get(CLAVE_PARAMETROS)
+  const resto = (prev?.cuadreReal ?? []).filter(
+    (c) => !(c.ubicacion === ubicacion && c.activo === activo),
+  )
+  const cuadreReal =
+    saldoReal === ''
+      ? resto
+      : [...resto, { ubicacion, activo, saldoReal, ...(notas ? { notas } : {}) }]
+  await db.parametros.put({
+    ...(prev ?? {
+      clave: CLAVE_PARAMETROS,
+      toleranciaVerde: TOLERANCIAS_POR_DEFECTO.verde,
+      toleranciaAmbar: TOLERANCIAS_POR_DEFECTO.ambar,
+    }),
+    clave: CLAVE_PARAMETROS,
+    cuadreReal,
+  })
+}
+
+// ── Marca de la última copia de seguridad (P11, recordatorio suave) ─────────
+
+/** Lee la marca de la última copia JSON descargada (fecha + nº de apuntes). */
+export async function estadoCopia(): Promise<{
+  ultimaCopiaEn?: string
+  apuntesEnUltimaCopia?: number
+}> {
+  const p = await db.parametros.get(CLAVE_PARAMETROS)
+  return {
+    ...(p?.ultimaCopiaEn ? { ultimaCopiaEn: p.ultimaCopiaEn } : {}),
+    ...(p?.apuntesEnUltimaCopia !== undefined
+      ? { apuntesEnUltimaCopia: p.apuntesEnUltimaCopia }
+      : {}),
+  }
+}
+
+/** Registra que se acaba de descargar una copia JSON con `nApuntes` apuntes. */
+export async function registrarCopiaRealizada(fechaISO: string, nApuntes: number): Promise<void> {
+  const prev = await db.parametros.get(CLAVE_PARAMETROS)
+  await db.parametros.put({
+    ...(prev ?? {
+      clave: CLAVE_PARAMETROS,
+      toleranciaVerde: TOLERANCIAS_POR_DEFECTO.verde,
+      toleranciaAmbar: TOLERANCIAS_POR_DEFECTO.ambar,
+    }),
+    clave: CLAVE_PARAMETROS,
+    ultimaCopiaEn: fechaISO,
+    apuntesEnUltimaCopia: nApuntes,
+  })
+}
+
 /** Foto completa del Libro para la copia JSON nativa (incluye justificantes y cuadre). */
 export async function snapshotActual(): Promise<EntradaSnapshot> {
   const [contenido, registrosApuntes, justificantesRaw, cuadreReal] = await Promise.all([
@@ -614,7 +679,7 @@ export async function borrarTodo(): Promise<void> {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Caso de ejemplo (mini-caso 2024) — onboarding con un clic (P9.3)
+// Caso de ejemplo COMPLETO (2024–2025) — onboarding con un clic (P9.3 / P10)
 // ────────────────────────────────────────────────────────────────────────────
 
 /** Quita la marca `demoCargada` del singleton de parámetros (si existe). */
@@ -626,7 +691,7 @@ async function limpiarMarcaDemo(): Promise<void> {
   }
 }
 
-/** ¿Está cargado el caso de ejemplo (mini-caso 2024)? */
+/** ¿Está cargado el caso de ejemplo (2024–2025)? */
 export async function estaDemoCargada(): Promise<boolean> {
   const p = await db.parametros.get(CLAVE_PARAMETROS)
   return p?.demoCargada === true
@@ -638,10 +703,12 @@ export async function libroVacio(): Promise<boolean> {
 }
 
 /**
- * Carga el CASO DE EJEMPLO (mini-caso 2024): REEMPLAZA el contenido del Libro por los apuntes,
- * ubicaciones y activos de la demo, siembra los precios manuales de demostración y marca
- * `demoCargada`. Idempotente: llamarla dos veces no duplica (siempre reemplaza). Renumera al
- * final para dejar los correlativos como los del golden. Transacción atómica.
+ * Carga el CASO DE EJEMPLO COMPLETO (2024–2025): REEMPLAZA el contenido del Libro por los
+ * apuntes, ubicaciones y activos de la demo; siembra el Archivo (justificantes), el subtipo de
+ * las PÉRDIDAS, la referencia estable de los AJUSTES (rectificaA → rectificaAUid) y los precios
+ * manuales; y marca `demoCargada`. Idempotente: llamarla dos veces no duplica (siempre
+ * reemplaza). Renumera antes de resolver referencias, para que los correlativos queden como los
+ * del dataset (los de 2024, como los del golden). Transacción atómica.
  */
 export async function cargarCasoDemo(): Promise<void> {
   await db.transaction(
@@ -659,13 +726,46 @@ export async function cargarCasoDemo(): Promise<void> {
       await db.ubicaciones.bulkAdd(UBICACIONES_CASO_DEMO.map((u) => ({ ...u })))
       await db.apuntes.bulkAdd(APUNTES_CASO_DEMO.map(apunteARegistro))
       await renumerarTodo()
+
+      // Con los correlativos ya fijados (idénticos a los del dataset), se resuelven las
+      // referencias estables: justificantes (apunteId → apunteUid), rectificaA de los AJUSTES
+      // (→ rectificaAUid) y subtipo de las PÉRDIDAS (capa de datos, derivada D2).
+      const registros = await db.apuntes.toArray()
+      const uidPorId = new Map(registros.map((r) => [r.id, r.uid]))
+      for (const ap of APUNTES_CASO_DEMO) {
+        if (!ap.rectificaA) continue
+        const uid = uidPorId.get(ap.id)
+        const refUid = uidPorId.get(ap.rectificaA)
+        if (uid && refUid) await db.apuntes.update(uid, { rectificaAUid: refUid })
+      }
+      for (const [id, subtipoPerdida] of Object.entries(SUBTIPOS_PERDIDA_CASO_DEMO)) {
+        const uid = uidPorId.get(id)
+        if (uid) await db.apuntes.update(uid, { subtipoPerdida })
+      }
+      await db.justificantes.bulkAdd(
+        JUSTIFICANTES_CASO_DEMO.map((j) => ({
+          id: j.id,
+          // '' (documento de ubicación/ejercicio, carpetas 05/06) queda sin apunteUid.
+          apunteUid: uidPorId.get(j.apunteId) ?? '',
+          rutaConvencional: j.rutaConvencional,
+          tipoDocumento: j.tipoDocumento,
+          ...(j.referenciaExterna ? { referenciaExterna: j.referenciaExterna } : {}),
+          ...(j.notas ? { notas: j.notas } : {}),
+        })),
+      )
+
       await db.precios.bulkAdd(PRECIOS_CASO_DEMO.map((p) => ({ ...p })))
       const prev = await db.parametros.get(CLAVE_PARAMETROS)
       await db.parametros.put({
         clave: CLAVE_PARAMETROS,
         toleranciaVerde: prev?.toleranciaVerde ?? TOLERANCIAS_POR_DEFECTO.verde,
         toleranciaAmbar: prev?.toleranciaAmbar ?? TOLERANCIAS_POR_DEFECTO.ambar,
-        ...(prev?.cuadreReal ? { cuadreReal: prev.cuadreReal } : {}),
+        // La demo trae su propio cuadre declarado (todo en verde, listo para enseñar).
+        cuadreReal: CUADRE_REAL_CASO_DEMO.map((c) => ({ ...c })),
+        ...(prev?.ultimaCopiaEn ? { ultimaCopiaEn: prev.ultimaCopiaEn } : {}),
+        ...(prev?.apuntesEnUltimaCopia !== undefined
+          ? { apuntesEnUltimaCopia: prev.apuntesEnUltimaCopia }
+          : {}),
         demoCargada: true,
       })
     },

@@ -31,6 +31,7 @@ import { fmtDecimal, fmtUbicacion } from '../formato'
 import { descargarTexto } from '../descargas'
 import { BTN_PRIMARIO, BTN_SEC, Modal, Banner } from '../comp'
 import { SelloKyc } from '../trazabilidad/SelloKyc'
+import { SeccionCuadre } from '../trazabilidad/SeccionCuadre'
 import { construirInformeHtml } from '../trazabilidad/informeHtml'
 import { InformeCadena } from '../trazabilidad/InformeCadena'
 import { UnidadManual } from '../guia/UnidadManual'
@@ -121,11 +122,11 @@ export function TrazabilidadPage() {
     <div className="space-y-6">
       <UnidadManual ruta="trazabilidad" />
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Trazabilidad</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Trazabilidad y cuadre</h1>
         <p className="text-sm text-slate-500">
-          De dónde procede cada saldo: qué parte es de origen <SelloKyc kyc soloIcono /> KYC y qué
-          parte <SelloKyc kyc={false} soloIcono /> no-KYC. Elige una celda para ver «¿cómo demuestro
-          este saldo?».
+          Cuadra cada saldo contra su fuente con el semáforo, y mira de dónde procede: qué parte
+          es de origen <SelloKyc kyc soloIcono /> KYC y qué parte <SelloKyc kyc={false} soloIcono />{' '}
+          no-KYC. Elige una celda para ver «¿cómo demuestro este saldo?».
         </p>
       </header>
 
@@ -163,6 +164,9 @@ export function TrazabilidadPage() {
           })}
         </section>
       )}
+
+      {/* Cuadre (semáforo de la Tabla 5): saldo real declarado vs saldo calculado. */}
+      <SeccionCuadre apuntes={apuntes} nombreUbic={nombreUbic} />
 
       {/* Cartera por origen (SALDOS con sello). */}
       <section className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">

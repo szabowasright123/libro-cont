@@ -10,7 +10,7 @@
  *
  * Importar (XLSX/CSV/JSON) REEMPLAZA el Libro actual: se avisa siempre antes.
  */
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 // La plantilla oficial viaja embebida como asset (sin red en runtime, Regla 3).
 import plantillaUrl from '../../assets/plantilla-taller.xlsx?url'
 import { BTN_PRIMARIO, BTN_SEC, BTN_PELIGRO, Banner } from '../comp'
@@ -31,9 +31,12 @@ import {
   estaDemoCargada,
   listarJustificantes,
   espacioArchivoUsado,
+  estadoCopia,
+  registrarCopiaRealizada,
 } from '../../data/repositorio'
+import { estadoAlmacenamientoPersistente } from '../../data/db'
 import { useLiveQuery } from '../../data/useLiveQuery'
-import { fmtBytes } from '../formato'
+import { fmtBytes, fmtFecha } from '../formato'
 import { importarXlsx } from '../../data/import/xlsx-import'
 import { exportarXlsx, nombreFicheroXlsx } from '../../data/import/xlsx-export'
 import { importarCsvGenerico } from '../../data/import/csv-generico'
@@ -169,7 +172,7 @@ function SeccionDesarrollo({ accion, ocupado, aviso }: Props) {
   )
 }
 
-// ── Caso de ejemplo (mini-caso 2024) ────────────────────────────────────────
+// ── Caso de ejemplo (completo, 2024–2025) ───────────────────────────────────
 
 /**
  * Borrado limpio del CASO DE EJEMPLO (P9.3): deja el Libro vacío (misma mecánica que el
@@ -195,7 +198,7 @@ function SeccionCasoDemo({ accion, ocupado, aviso }: Props) {
   return (
     <Seccion
       titulo="Caso de ejemplo cargado"
-      desc="Estás viendo el mini-caso 2024 de demostración. Bórralo cuando quieras empezar con tus propios datos; el Libro quedará vacío."
+      desc="Estás viendo el caso de ejemplo completo (2024–2025) de demostración. Bórralo cuando quieras empezar con tus propios datos; el Libro quedará vacío."
     >
       <button type="button" className={BTN_SEC} onClick={borrar} disabled={ocupado}>
         Borrar caso de ejemplo
@@ -416,11 +419,27 @@ function SeccionCsv({ accion, ocupado, setInforme, aviso }: Props) {
 // ── 3 · Copia de seguridad JSON nativa ──────────────────────────────────────
 
 function SeccionCopia({ accion, ocupado, aviso }: Props) {
+  // Marca de la última copia (para el «última copia: …» y el recordatorio de Inicio).
+  const copiaQ = useLiveQuery(estadoCopia, [])
+  const marca = copiaQ.estado === 'listo' ? copiaQ.datos : {}
+
+  // Estado del almacenamiento persistente del navegador (API fuera de Dexie).
+  const [persistente, setPersistente] = useState<boolean | null>(null)
+  useEffect(() => {
+    let vivo = true
+    void estadoAlmacenamientoPersistente().then((v) => vivo && setPersistente(v))
+    return () => {
+      vivo = false
+    }
+  }, [])
+
   const descargar = () =>
     accion(async () => {
       const snap = await snapshotActual()
       const fecha = new Date().toISOString().slice(0, 10)
       descargarTexto(`libro-hesperides-copia-${fecha}.json`, exportarJson({ ...snap, exportadoEn: new Date().toISOString() }))
+      // Registra la marca: alimenta el recordatorio suave de copia (P11).
+      await registrarCopiaRealizada(new Date().toISOString(), snap.apuntes.length)
       aviso('exito', 'Copia de seguridad descargada (formato JSON nativo, versionado).')
     })
 
@@ -450,6 +469,25 @@ function SeccionCopia({ accion, ocupado, aviso }: Props) {
       <BotonArchivo accept=".json,application/json" onArchivo={restaurar} disabled={ocupado} clase={BTN_SEC}>
         Restaurar copia…
       </BotonArchivo>
+      <div className="w-full space-y-0.5 text-xs text-slate-500">
+        <p>
+          {marca.ultimaCopiaEn
+            ? `Última copia descargada: ${fmtFecha(marca.ultimaCopiaEn)} (${marca.apuntesEnUltimaCopia ?? 0} apuntes).`
+            : 'Aún no has descargado ninguna copia desde este navegador.'}
+        </p>
+        <p>
+          Almacenamiento persistente del navegador:{' '}
+          {persistente === true && (
+            <span className="text-semaforo-ok">concedido (el navegador no purgará tus datos por falta de espacio).</span>
+          )}
+          {persistente === false && (
+            <span className="text-semaforo-revisar">
+              no concedido todavía — con más uso, el navegador suele concederlo; mientras tanto, la copia JSON es tu red de seguridad.
+            </span>
+          )}
+          {persistente === null && 'no disponible en este navegador.'}
+        </p>
+      </div>
     </Seccion>
   )
 }

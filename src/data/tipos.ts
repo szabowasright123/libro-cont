@@ -77,10 +77,17 @@ export interface ParametrosRegistro {
    */
   cuadreReal?: SaldoRealDeclarado[]
   /**
-   * Marca de que el Libro contiene el CASO DE EJEMPLO (mini-caso 2024, P9.3). Permite
-   * avisar en Inicio de que se está viendo la demo y ofrecer su borrado limpio en Ajustes.
+   * Marca de que el Libro contiene el CASO DE EJEMPLO (P9.3). Permite avisar en Inicio de
+   * que se está viendo la demo y ofrecer su borrado limpio en Ajustes.
    */
   demoCargada?: boolean
+  /**
+   * Marca de la última COPIA DE SEGURIDAD JSON descargada (P11): fecha ISO y nº de apuntes
+   * que contenía. Alimenta el recordatorio suave de copia (src/data/copias.ts). Sin marca,
+   * nunca se descargó una copia desde este navegador.
+   */
+  ultimaCopiaEn?: string
+  apuntesEnUltimaCopia?: number
 }
 
 /**

@@ -31,24 +31,25 @@ test('Cartera: cargar caso de ejemplo, ver la valoración y recalcular al editar
   await descartarAvisoPwa(page)
 
   // 1 · Cargar el caso de ejemplo desde Inicio (navega al Diario).
-  await page.getByRole('button', { name: 'Cargar caso de ejemplo (mini-caso 2024)' }).click()
+  await page.getByRole('button', { name: 'Cargar caso de ejemplo', exact: true }).click()
   await expect(page.locator('tr[data-fila]').first()).toBeVisible()
 
-  // 2 · Ir a Cartera: valor estimado 48.361,6 € con los precios de demostración.
+  // 2 · Ir a Cartera: valor estimado 93.062,12 € con los precios de demostración
+  //     (BTC 0,84355 × 100.000 + ETH 0,249 × 3.000 + USDC 311 × 0,92 + EUR 7.674).
   await irA(page, 'Cartera')
   await expect(page.getByRole('heading', { name: 'Cartera' })).toBeVisible()
-  await expect(page.getByText('48.361,6 €').first()).toBeVisible()
+  await expect(page.getByText('93.062,12 €').first()).toBeVisible()
 
-  // 3 · Editar el precio manual de BTC: 100.000 → 120.000. El valor de BTC pasa a 48.816 €.
+  // 3 · Editar el precio manual de BTC: 100.000 → 120.000. El valor de BTC pasa a 101.226 €.
   const precioBtc = page.getByLabel('Precio manual de BTC en euros')
   await precioBtc.fill('120000')
   await precioBtc.press('Enter')
 
-  // La fila de BTC (0,4068 × 120.000 = 48.816) y el nuevo total (56.497,6) se reflejan.
+  // La fila de BTC (0,84355 × 120.000 = 101.226) y el nuevo total (109.933,12) se reflejan.
   // Se afirma sobre la celda de la tabla y la tarjeta (visibles), no sobre el <title> del SVG.
-  await expect(page.getByRole('cell', { name: '48.816 €', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '101.226 €', exact: true })).toBeVisible()
   await expect(
-    page.getByText('Valor estimado').locator('..').getByText('56.497,6 €'),
+    page.getByText('Valor estimado').locator('..').getByText('109.933,12 €'),
   ).toBeVisible()
 
   // 4 · El caso de ejemplo se puede borrar desde Ajustes (deja el Libro vacío).

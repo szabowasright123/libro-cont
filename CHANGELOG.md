@@ -4,6 +4,67 @@ Todas las versiones notables de la app. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/); versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.3.0] — 2026-08-15
+
+El CUADRE por fin tiene pantalla y el trabajo del alumno queda protegido frente a purgas del
+navegador. El **motor** sigue intacto: la nueva vista LEE `engine/cuadre.ts` (que existía y
+estaba testeado desde P1) sin tocarlo.
+
+### Pantalla del CUADRE (semáforo de la Tabla 5) — P11
+
+- Nueva sección **«Cuadre (semáforo)»** en la página *Trazabilidad y cuadre*: por cada celda
+  (ubicación × activo) el alumno teclea el **saldo real** leído en su fuente (exchange,
+  wallet, canal) y ve la diferencia contra el saldo calculado, clasificada OK / REVISAR /
+  ERROR según las tolerancias (editables en Parámetros). Chips de resumen y celdas «sin
+  declarar»; entrada con coma o punto; borrar la casilla quita la declaración.
+- Los saldos declarados se guardan en `cuadreReal` (que ya viajaba en la copia JSON desde P4)
+  vía el nuevo `repositorio.guardarSaldoRealDeclarado` (upsert por celda).
+- El **caso de ejemplo** llega con las 6 celdas con saldo declaradas y el semáforo en verde:
+  editar una celda en clase enseña el ámbar y el rojo en vivo.
+- El paso 4 de Inicio («Cuadra y sigue el origen») describe ahora el semáforo.
+
+### Protección del trabajo del alumno — P11
+
+- **Almacenamiento persistente:** al abrir la base se solicita `navigator.storage.persist()`
+  (mejor esfuerzo, sin bloquear); Ajustes → Copia de seguridad muestra si está concedido.
+- **Recordatorio suave de copia:** banner en Inicio cuando nunca se descargó copia y ya hay
+  ≥ 10 apuntes, cuando hay ≥ 20 apuntes nuevos desde la última, o cuando la última copia
+  tiene ≥ 30 días y el Libro cambió. Nunca con la demo cargada; descartable por sesión. La
+  lógica es pura y testeada (`src/data/copias.ts`); al descargar la copia JSON se registra la
+  marca (fecha + nº de apuntes), visible en Ajustes.
+
+## [1.2.0] — 2026-08-15
+
+Caso de ejemplo COMPLETO (fase P10): el botón de Inicio pasa a llamarse **«Cargar caso de
+ejemplo»** (sin paréntesis) y carga una historia en dos capítulos pensada para que TODA la app
+se vea con datos. El **motor** y los **golden tests** siguen intactos.
+
+### Caso de ejemplo completo 2024–2025 (P10)
+
+- **Capítulo 2024 = mini-caso golden, verbatim** (Regla de oro 9): mismos 19 apuntes y mismos
+  saldos a 31/12/2024 (BTC 0,4068 · ETH 1,049 · USDC 305 · EUR 4.254). El puente de igualdad
+  estructural (`tests/demo/caso-demo.test.ts`) ahora garantiza que el capítulo 2024 no diverge
+  del golden y que Kraken/Ledger conservan sus campos originales.
+- **Capítulo 2025 (10 apuntes nuevos):** compra grande de BTC, venta de ETH **con pérdida de
+  transmisión**, apertura de un **canal Lightning** (ubicación tipo «canal»), un **PAGO** por
+  Lightning con factura, una **DONACIÓN entregada**, dos RENDIMIENTOS (lending USDC y earn
+  BTC) y un **AJUSTE/RECTIFICACIÓN** auditable con `rectificaA`. Con esto el Diario muestra
+  los 11 tipos del catálogo con relevancia práctica.
+- **La lección del 721 con doble fecha:** Kraken pasa a ficha ampliada (extranjero · Irlanda ·
+  vía exchange-KYC); Ledger y el canal, a **autocustodia**. A 20/10/2025 el saldo extranjero
+  valorado (con BTC a 100.000 €) **supera** los 50.000 €; el 12/11 el alumno retira 0,5 BTC a
+  autocustodia y el corte normativo de 31/12 queda **por debajo** del umbral.
+- **Archivo sembrado al 100%:** 62 justificantes de demostración (referencias externas, sin
+  ficheros) que dejan los 29 apuntes con expediente probatorio completo — el «expediente
+  modelo» del taller, con la rama KYC/no-KYC que corresponde a cada tipo — más un certificado
+  anual en la carpeta 05 (documento de ejercicio, sin apunte).
+- **Subtipo de la pérdida:** el phishing de 2024 se clasifica como **estafa** (capa de datos).
+- **Cartera/Fiscal:** GyP por ejercicio con 2024 positivo y **2025 negativo** (−67,64 €), dos
+  ejercicios en el selector de Fiscal (mapas de casillas 2024 y 2025) y trazabilidad de Ledger
+  en «mezcla» (0,785 KYC + 0,002 no-KYC).
+- Textos actualizados en Inicio/Ajustes; e2e de Cartera adaptado a los nuevos valores
+  (93.062,12 € con los precios de demostración).
+
 ## [1.1.0] — 2026-08-08
 
 Identidad visual propia, visión de cartera y onboarding con un clic (fase P9). El **motor**

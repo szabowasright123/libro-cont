@@ -210,11 +210,41 @@ export async function sembrarSiVacia(): Promise<void> {
 }
 
 /**
+ * Pide al navegador ALMACENAMIENTO PERSISTENTE para esta web (P11): con el permiso
+ * concedido, el navegador no purga IndexedDB por presión de disco sin acción del usuario.
+ * Devuelve true/false según el estado, o null si la API no existe (navegadores antiguos,
+ * entornos de test). Nunca lanza; nunca bloquea la apertura de la base.
+ */
+export async function solicitarAlmacenamientoPersistente(): Promise<boolean | null> {
+  try {
+    const s = globalThis.navigator?.storage
+    if (!s?.persist || !s.persisted) return null
+    if (await s.persisted()) return true
+    return await s.persist()
+  } catch {
+    return null
+  }
+}
+
+/** ¿Está ya concedido el almacenamiento persistente? (null si la API no existe). */
+export async function estadoAlmacenamientoPersistente(): Promise<boolean | null> {
+  try {
+    const s = globalThis.navigator?.storage
+    if (!s?.persisted) return null
+    return await s.persisted()
+  } catch {
+    return null
+  }
+}
+
+/**
  * Abre la base de datos local, la siembra si hace falta y devuelve un resumen de
  * estado. La usa la página de inicio para confirmar que IndexedDB está operativo.
+ * De paso solicita almacenamiento persistente (mejor esfuerzo, sin bloquear).
  */
 export async function abrirBaseDatos(): Promise<{ nombre: string; version: number }> {
   await db.open()
   await sembrarSiVacia()
+  void solicitarAlmacenamientoPersistente()
   return { nombre: db.name, version: db.verno }
 }
