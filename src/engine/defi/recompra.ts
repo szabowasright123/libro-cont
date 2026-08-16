@@ -61,12 +61,42 @@ export interface PerdidaDiferida {
   readquisiciones: { apunteId: IdApunte; fechaHora: string; cantidad: string }[]
 }
 
-/** Fecha límite de la readquisición: un año natural después de la transmisión. */
+/** ¿Es bisiesto este año? (regla gregoriana completa). */
+function esBisiesto(anio: number): boolean {
+  return (anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0
+}
+
+/**
+ * Fecha límite de la readquisición: un año natural después de la transmisión, «de fecha a
+ * fecha» (art. 5.1 CC).
+ *
+ * SE CALCULA SOBRE LA CADENA, sin pasar por `Date`. La primera versión hacía
+ * `new Date(iso)` + `toISOString()`, y eso introducía un bug de fondo: las marcas del Libro
+ * son ISO en HORA LOCAL ESPAÑOLA (ver `FechaHoraISO` y la regla de oro 6), pero
+ * `toISOString()` las convierte a UTC. En un equipo en Europe/Madrid el límite salía
+ * desplazado una o dos horas según el horario de verano, mientras que en un servidor en UTC
+ * salía correcto.
+ *
+ * El daño no era cosmético: `detectarRecompras` compara `ap.fechaHora > limite` como
+ * cadenas, de modo que el desfase movía la frontera del año y una readquisición registrada
+ * justo en el borde entraba o salía del diferimiento según la zona horaria del equipo. Es
+ * decir, el mismo Libro daba resultados fiscales distintos en Madrid y en Londres, lo que
+ * rompe la regla de oro 4 (funciones deterministas estado→resultado).
+ *
+ * Trabajar sobre la cadena elimina el problema de raíz: no hay zona horaria que aplicar
+ * porque nunca se sale del calendario local.
+ */
 export function limiteAnoSiguiente(fechaHoraISO: string): string {
-  const d = new Date(fechaHoraISO)
-  const limite = new Date(d)
-  limite.setFullYear(limite.getFullYear() + 1)
-  return limite.toISOString().slice(0, 19)
+  const [fecha = '', hora = '00:00:00'] = fechaHoraISO.split('T')
+  const [a = '0', m = '01', d = '01'] = fecha.split('-')
+  const anio = Number(a) + 1
+
+  // 29 de febrero: si el año siguiente no es bisiesto, el plazo vence el 28. Es el
+  // criterio del cómputo civil «de fecha a fecha» cuando el mes de vencimiento no tiene
+  // día equivalente (art. 5.1 CC in fine).
+  const dia = m === '02' && d === '29' && !esBisiesto(anio) ? '28' : d
+
+  return `${anio}-${m}-${dia}T${hora}`
 }
 
 /** ¿Este apunte readquiere unidades del activo (abre lote)? */

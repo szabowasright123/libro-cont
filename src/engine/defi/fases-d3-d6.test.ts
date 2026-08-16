@@ -154,8 +154,32 @@ const venta = (id: string, fecha: string, cant: string, eur: string): Apunte => 
 })
 
 describe('D4 · detector del art. 33.5.e', () => {
-  it('el límite es un año natural desde la transmisión', () => {
+  it('el límite es un año natural desde la transmisión, «de fecha a fecha»', () => {
     expect(limiteAnoSiguiente('2026-03-01T10:00:00')).toBe('2027-03-01T10:00:00')
+    expect(limiteAnoSiguiente('2026-12-31T23:59:59')).toBe('2027-12-31T23:59:59')
+  })
+
+  it('NO depende de la zona horaria del equipo', () => {
+    // Regresión: la primera versión pasaba por `new Date` + `toISOString()`, que convierte
+    // a UTC. En un equipo en Europe/Madrid el límite salía desplazado una o dos horas según
+    // el horario de verano, y con él la frontera del año: el mismo Libro daba un resultado
+    // fiscal distinto en Madrid que en un servidor en UTC. Las marcas del Libro son ISO en
+    // hora LOCAL y aquí no se sale nunca del calendario local.
+    const original = process.env.TZ
+    try {
+      for (const tz of ['UTC', 'Europe/Madrid', 'America/Los_Angeles', 'Pacific/Kiritimati']) {
+        process.env.TZ = tz
+        expect(limiteAnoSiguiente('2026-03-01T10:00:00')).toBe('2027-03-01T10:00:00')
+      }
+    } finally {
+      process.env.TZ = original
+    }
+  })
+
+  it('el 29 de febrero vence el 28 si el año siguiente no es bisiesto', () => {
+    expect(limiteAnoSiguiente('2024-02-29T10:00:00')).toBe('2025-02-28T10:00:00')
+    // Y se mantiene el 29 cuando el año de vencimiento sí lo es.
+    expect(limiteAnoSiguiente('2099-02-28T10:00:00')).toBe('2100-02-28T10:00:00')
   })
 
   it('recompra a los 11 meses → pérdida DIFERIDA', () => {
