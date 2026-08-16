@@ -133,7 +133,7 @@ describe('cargarCasoDemo (caso completo 2024–2025)', () => {
 
     // 2024: las mismas cifras que tenía el mini-caso (el capítulo 2025 no las toca).
     const r2024 = calcularResumenFiscal(apuntes, ubicaciones, dom, 2024)
-    expect(r2024.ahorro.netoEUR).toBe('4725.4')
+    expect(r2024.ahorro.netoEUR).toBe('4723.197')
     expect(r2024.rcm.totalEUR).toBe('157')
     expect(r2024.actividadEconomica.totalEUR).toBe('110')
     expect(r2024.baseGeneral.totalEUR).toBe('100')

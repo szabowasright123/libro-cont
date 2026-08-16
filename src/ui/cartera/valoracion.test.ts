@@ -41,15 +41,15 @@ describe('Cartera · valoración con precios manuales (mini-caso 2024)', () => {
     expect(eq(pos('EUR')!.valorEUR, '4254')).toBe(true) //  saldo, sin precio
   })
 
-  it('coste FIFO restante cripto total = 20.638,10 € (BTC 17.730,1 + ETH 2.353 + USDC 555)', () => {
-    expect(eq(r.costeRestanteCriptoEUR, '20638.1')).toBe(true)
-    expect(eq(pos('BTC')!.costeFifoRestanteEUR, '17730.1')).toBe(true)
+  it('coste FIFO restante cripto total = 20.627,885 € (BTC 17.722,088 + ETH 2.350,797 + USDC 555)', () => {
+    expect(eq(r.costeRestanteCriptoEUR, '20627.885')).toBe(true)
+    expect(eq(pos('BTC')!.costeFifoRestanteEUR, '17722.088')).toBe(true)
     expect(eq(pos('USDC')!.costeFifoRestanteEUR, '555')).toBe(true)
     expect(pos('EUR')!.costeFifoRestanteEUR).toBeNull() // EUR/fiat: sin cola FIFO
   })
 
-  it('plusvalía latente = valor cripto − coste cripto = 44.107,60 − 20.638,1 = 23.469,50 € (EUR excluido)', () => {
-    expect(eq(r.plusvaliaLatenteEUR, '23469.5')).toBe(true)
+  it('plusvalía latente = valor cripto − coste cripto = 44.107,60 − 20.627,885 = 23.479,715 € (EUR excluido)', () => {
+    expect(eq(r.plusvaliaLatenteEUR, '23479.715')).toBe(true)
   })
 
   it('pesos coherentes y suma ≈ 100 %', () => {
@@ -81,16 +81,16 @@ describe('Cartera · sin precios manuales', () => {
 
   it('plusvalía latente = «—» (null) si no hay cripto con precio; el coste restante sigue disponible', () => {
     expect(r.plusvaliaLatenteEUR).toBeNull()
-    expect(eq(r.costeRestanteCriptoEUR, '20638.1')).toBe(true)
+    expect(eq(r.costeRestanteCriptoEUR, '20627.885')).toBe(true)
     expect(eq(r.valorTotalEUR, '4254')).toBe(true) // solo EUR
   })
 })
 
 describe('Cartera · GyP realizada por ejercicio', () => {
-  it('2024 → neto del ahorro 4.725,40 € (transmisiones onerosas, sin la PÉRDIDA)', () => {
+  it('2024 → neto del ahorro 4.723,197 € (transmisiones onerosas, sin la PÉRDIDA)', () => {
     const gyp = gypRealizadaPorEjercicio(APUNTES_MINICASO, UBICACIONES_MINICASO, [])
     expect(gyp).toHaveLength(1)
     expect(gyp[0]!.ejercicio).toBe(2024)
-    expect(eq(gyp[0]!.netoEUR, '4725.4')).toBe(true)
+    expect(eq(gyp[0]!.netoEUR, '4723.197')).toBe(true)
   })
 })

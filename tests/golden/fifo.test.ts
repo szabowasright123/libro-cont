@@ -64,26 +64,36 @@ describe('FIFO · GyP por transmisión (mini-caso 2024)', () => {
     expect(eq(x.resultadoEUR, '1197')).toBe(true)
   })
 
-  it('BTC · resumen de cola: adquirido 0,572 · consumido 0,165 · restante 0,407 · coste restante 17.730,1', () => {
+  it('BTC · resumen de cola: adquirido 0,572 · consumido 0,1652 · restante 0,4068 · coste restante 17.722,088', () => {
     const r = resumen('BTC')
     expect(eq(r.adquiridoTotal, '0.572')).toBe(true)
-    expect(eq(r.consumidoTotal, '0.165')).toBe(true)
-    expect(eq(r.restanteTotal, '0.407')).toBe(true)
-    expect(eq(r.costeRestanteEUR, '17730.1')).toBe(true)
-    // El restante FIFO (0,407) supera el saldo físico (0,4068) en 0,0002: la comisión
-    // de red de la TRANSFERENCIA 2024-007, que sale del patrimonio pero no consume cola.
-    expect(eq(r.restanteTotal, '0.4068')).toBe(false)
+    // 0,165 transmitidos + 0,0002 de la comisión de red de la TRANSFERENCIA 2024-007,
+    // que desde D0 también consume cola (docs/DEFI_EVENTOS_COMPLEJOS.md §8).
+    expect(eq(r.consumidoTotal, '0.1652')).toBe(true)
+    expect(eq(r.restanteTotal, '0.4068')).toBe(true)
+    // 17.730,10 − 8,012 (coste FIFO de 0,0002 BTC del lote 2024-002 @40.060/BTC).
+    // Ese coste NO es deducible: la comisión sirve a un traslado entre ubicaciones
+    // propias (manual U4.3), así que se pierde en lugar de trasladarse a ninguna parte.
+    expect(eq(r.costeRestanteEUR, '17722.088')).toBe(true)
+  })
+
+  it('BTC · el restante FIFO COINCIDE con el saldo físico (invariante de D0)', () => {
+    // Antes de D0 el restante era 0,407 frente a un saldo real de 0,4068. Que ahora
+    // coincidan es justamente lo que hace exacto el CUADRE.
+    expect(eq(resumen('BTC').restanteTotal, '0.4068')).toBe(true)
   })
 
   // ── ETH ────────────────────────────────────────────────────────────────────
   // Cola ETH: Lote 2024-003 COMPRA 2 @2.203 · 2024-004 RENDIMIENTO 0,05 @3.000.
-  it('2024-006 PERMUTA entrega 1 ETH → consume 1 del lote 2024-003 · GyP = 3000 − 2203 = 797', () => {
+  it('2024-006 PERMUTA entrega 1 ETH · GyP = (3000 − 2,203) − 2203 = 794,797', () => {
     const x = t('ETH', '2024-006')
-    expect(eq(x.valorTransmisionNetoEUR, '3000')).toBe(true)
+    // La comisión de 0,001 ETH minora el valor de transmisión por su COSTE FIFO
+    // (0,001 × 2.203 = 2,203 €), no por su valor de mercado — D0, regla 3.
+    expect(eq(x.valorTransmisionNetoEUR, '2997.797')).toBe(true)
     expect(eq(x.costeFifoEUR, '2203')).toBe(true) // 1 × 2.203
-    expect(eq(x.resultadoEUR, '797')).toBe(true)
-    // La comisión 0,001 ETH NO consume cola (permuta consume solo lo entregado).
-    expect(eq(resumen('ETH').restanteTotal, '1.05')).toBe(true)
+    expect(eq(x.resultadoEUR, '794.797')).toBe(true)
+    // 1 ETH transmitido + 0,001 de comisión: la cola queda en 1,049, igual que el saldo.
+    expect(eq(resumen('ETH').restanteTotal, '1.049')).toBe(true)
   })
 
   // ── ADA ────────────────────────────────────────────────────────────────────
@@ -117,11 +127,13 @@ describe('FIFO · GyP por transmisión (mini-caso 2024)', () => {
   })
 
   // ── Totales ──────────────────────────────────────────────────────────────────
-  it('total de GyP de todas las transmisiones 2024 = 4525,10 (7 transmisiones)', () => {
+  it('total de GyP de todas las transmisiones 2024 = 4522,897 (7 transmisiones)', () => {
     const todas = transmisionesDelDiario(APUNTES_MINICASO)
     expect(todas).toHaveLength(7)
     const total = todas.reduce((acc, x) => acc.plus(D(x.resultadoEUR)), D('0'))
-    expect(eq(total.toFixed(), '4525.1')).toBe(true)
+    // 4.525,10 antes de D0; la diferencia de 2,203 es el coste FIFO de la comisión
+    // en ETH de la permuta 2024-006, que ahora minora su valor de transmisión.
+    expect(eq(total.toFixed(), '4522.897')).toBe(true)
     // Todas en el ejercicio 2024.
     expect(todas.every((x) => x.ejercicio === 2024)).toBe(true)
   })
