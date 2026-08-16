@@ -15,6 +15,7 @@
 import { type Apunte, type IdApunte, CATALOGO_TIPOS, ETIQUETA_EVENTO, esZonaGris } from './types'
 import { D } from './decimal'
 import { calcularFifo } from './fifo'
+import { esCompraContraCredito } from './defi/plantillas'
 
 /** Nivel de severidad de un aviso de validación. */
 export type NivelAviso = 'error' | 'aviso'
@@ -66,7 +67,13 @@ export function validarApunte(ap: Apunte): Aviso[] {
     case 'PERMUTA':
       // Adquisición/permuta: entran y salen activos, y deben ser distintos.
       if (!tieneEntrada(ap)) push('error', 'FALTA_ENTRADA', `${ap.tipo} exige activo de entrada.`)
-      if (!tieneSalida(ap)) push('error', 'FALTA_SALIDA', `${ap.tipo} exige activo de salida.`)
+      // Excepción documentada (D2): las COMPRAS cuya contrapartida es un CRÉDITO y no un
+      // activo —ejecución de garantía por el prestamista, recepción del principal por el
+      // prestatario— no tienen lado de salida. La deuda vive en la posición, no en el
+      // Libro. Ver src/engine/defi/plantillas.ts y DEFI §B1b/B2.
+      if (!tieneSalida(ap) && !esCompraContraCredito(ap)) {
+        push('error', 'FALTA_SALIDA', `${ap.tipo} exige activo de salida.`)
+      }
       if (ap.activoEntrada && ap.activoSalida && ap.activoEntrada === ap.activoSalida) {
         push('error', 'ENTRADA_IGUAL_SALIDA', `${ap.tipo}: entrada y salida no pueden ser el mismo activo.`)
       }
@@ -142,6 +149,25 @@ export function validarApunte(ap: Apunte): Aviso[] {
       'ZONA_GRIS_SIN_CRITERIO',
       `${ETIQUETA_EVENTO[ap.evento!]} no tiene criterio administrativo publicado: ` +
         'deja constancia del criterio aplicado y su fundamento.',
+    )
+  }
+
+  // 5 bis. RCM SIN GASTOS DEDUCIBLES (DEFI §4.5) → bloqueo.
+  //    El art. 26 LIRPF no permite deducir gastos de los rendimientos del capital
+  //    mobiliario obtenidos en criptoactivos (criterio V0648-24, expreso para staking,
+  //    lending, pools y yield farming). Una comisión colgada del propio RENDIMIENTO
+  //    acabaría minorando la renta por la puerta de atrás: si es en EUR suma al coste del
+  //    lote, y si es en cripto también (D0, regla 3), reduciendo la ganancia futura.
+  //    Debe registrarse como apunte independiente.
+  //    No aplica a MINERÍA (actividad económica: ahí los gastos SÍ son deducibles) ni a
+  //    AIRDROP (ganancia patrimonial, cuyo valor de adquisición sí admite gastos
+  //    inherentes del art. 35.1).
+  if (ap.tipo === 'RENDIMIENTO' && hayComCant) {
+    push(
+      'error',
+      'RCM_CON_GASTO',
+      'Un RENDIMIENTO (RCM) no admite comisión: el art. 26 LIRPF no permite deducir gastos ' +
+        '(V0648-24). Registra la comisión como apunte independiente.',
     )
   }
 

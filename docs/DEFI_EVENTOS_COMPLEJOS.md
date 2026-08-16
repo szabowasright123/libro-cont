@@ -495,7 +495,7 @@ Y una advertencia que el manual hace y conviene que la app repita: el **FIFO glo
 |---|---|---|
 | **D0** ✅ | Comisiones en cripto (§8) | Hecho: `tests/golden/comisiones-cripto.test.ts`; restante FIFO = saldo en los 5 activos |
 | **D1** ✅ | Campos `evento`, `posicionId`, `protocolo`, `criterioAplicado` + entidad `Posicion` + migración Dexie v8 | Hecho: 302 tests en verde, golden intactos |
-| **D2** | Familias A y B completas (staking, lending de ambos lados, ejecución de garantía) | Caso de ejemplo ampliado; cuadre verde |
+| **D2** ✅ | Familias A y B completas (staking, lending de ambos lados, ejecución de garantía) | Hecho: plantillas de descomposición + 22 tests; ciclo completo de préstamo verde |
 | **D3** | Familia C (pools): tesis benévola + valoración por precio efectivo | Test del ejemplo de §C6: la permuta neta es 5 ETH por 30.000 DAI |
 | **D4** | Detector del art. 33.5.e (§4.3) | Batería de casos límite: recompra a los 11 meses, a los 13, compra previa a la venta |
 | **D5** | Familias E, F, G + panel de zonas grises con recálculo comparativo | Recálculo prudente/benévolo de una cartera con pools |
