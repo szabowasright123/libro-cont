@@ -196,6 +196,21 @@ Dos sub-casos con tratamiento distinto:
 
 Zona gris en el primer caso. `criterioAplicado` obligatorio.
 
+#### C6. La valoración de la permuta: dónde está el problema de verdad
+
+Etiquetar la salida del pool como permuta no dice todavía **por cuánto**. Y ahí está el verdadero conflicto, porque el art. 37.1.h LIRPF no valora por lo recibido, sino por el **mayor de dos valores**: el de mercado del bien entregado y el de mercado del bien recibido. La **V0612-26** aplica expresamente esa regla a los canjes del staking líquido, y es la referencia más próxima que hay para los LP tokens.
+
+Un ejemplo hace visible el problema. Aportación de 10 ETH (coste 3.000 $/ETH) + 30.000 DAI. Al retirar, el AMM ha reequilibrado y salen 5 ETH + 60.000 DAI, con el ETH a 12.000 $:
+
+| Cálculo | Valor de transmisión | Ganancia |
+|---|---|---|
+| Permuta con la regla del art. 37.1.h (mayor de los dos valores) | 5 ETH × 12.000 = **60.000** | 60.000 − 15.000 = **45.000** |
+| Precio efectivamente obtenido (30.000 DAI por 5 ETH ⇒ 6.000 $/ETH) | **30.000** | 30.000 − 15.000 = **15.000** |
+
+La diferencia —30.000 $ de tributación sobre valor que el titular nunca recibió— no nace de calificar la operación como permuta. Nace de aplicar la regla del mayor valor a un **evento sintético**: un pool no hace un intercambio al salir, hace miles de micro-operaciones de arbitraje a lo largo del tiempo, cada una al precio vigente en ese instante. Si se pudieran registrar todas, el importe acumulado de las transmisiones de ETH sería ≈ 30.000, no 60.000. Colapsar esa secuencia en un único canje de salida es una simplificación contable, y es esa simplificación —no la calificación— la que infla la base.
+
+Consecuencia para la app: cuando el registro de la posición permita reconstruir el precio medio efectivamente obtenido, **conviene guardarlo junto al valor de mercado del activo entregado**. Son los dos números que hacen falta para sostener cualquiera de las dos posiciones ante una comprobación, y hoy ningún software cripto los conserva.
+
 ### Familia D · Derivados
 
 #### D1. DERIVADO_LIQUIDADO_POR_DIFERENCIAS — perpetuos, futuros, opciones, CFD
@@ -222,6 +237,16 @@ Distinguir:
 - Si lo que llega es un **token envuelto distinto** (USDC nativo → USDC.e): **PERMUTA**, como E1.
 
 La DGT no ha resuelto los *bridges*. La comisión del puente sigue la regla general de comisiones (§8).
+
+#### E4. ROUTER / MULTIHOP — la red hace 4 saltos para llegar de BNB a USDC
+
+El usuario ordena un intercambio de BNB por USDC y el agregador enruta la operación pasando por tres o cuatro tokens intermedios. En cadena hay cuatro permutas; en la voluntad del contribuyente, una.
+
+Argumento a favor de registrar **una sola PERMUTA** (BNB → USDC): el art. 13 LGT obliga a calificar los hechos conforme a su verdadera naturaleza jurídica, y los saltos intermedios son un mecanismo de ejecución, no negocios queridos por las partes. Los tokens intermedios no llegan a incorporarse al patrimonio de forma efectiva: no hay disponibilidad ni un instante.
+
+Argumento en contra: cada salto es técnicamente una transmisión, y la DGT no ha dicho nada.
+
+Propuesta: **una PERMUTA**, con la traza completa de los saltos guardada en el Archivo y `criterioAplicado` marcado. El resultado fiscal apenas difiere —los saltos intermedios son casi simultáneos y a precios de mercado, de modo que las ganancias intercaladas tienden a cero—, pero el número de apuntes cambia por un factor de cuatro y la cola FIFO se llena de lotes fantasma de tokens que el usuario nunca tuvo. Aquí la simplificación es además la que produce el registro más fiel.
 
 #### E3. HARD_FORK
 
@@ -268,6 +293,7 @@ El veToken es intransferible y no negociable, lo que dificulta sostener que haya
 | D1 | Derivados por diferencias | **ver §7** | GP arts. 33.1/34 | Ahorro | Línea CFD; **no** art. 37.1.m |
 | E1 | Wrapping | PERMUTA | GP art. 37.1.h | Ahorro | Zona gris |
 | E2 | Bridge | TRANSFERENCIA o PERMUTA | Según identidad del activo | — / Ahorro | Sin criterio DGT |
+| E4 | Router / multihop | 1 × PERMUTA (no N) | GP art. 37.1.h | Ahorro | Art. 13 LGT — sin criterio DGT |
 | E3 | Hard fork | AIRDROP o COMPRA a coste 0 | GP sin transmisión, o diferimiento | General / — | Zona gris (U3.4.4) |
 | F1 | Airdrop condicionado | AIRDROP, o RENDIMIENTO si hay contraprestación | GP art. 37.1.l / RCM | General / Ahorro | 0018-23 (no vinculante) |
 | G1 | Locking / veTokens | TRANSFERENCIA + RENDIMIENTO | RCM | Ahorro | Zona gris |
@@ -416,3 +442,46 @@ Y una advertencia que el manual hace y conviene que la app repita: el **FIFO glo
 **Jurisprudencia**: TSJ País Vasco, Sección 1.ª, sentencias 37/2025 (ECLI:ES:TSJPV:2025:41), 142/2025 (ECLI:ES:TSJPV:2025:1078) y 188/2025 (ECLI:ES:TSJPV:2025:1712).
 
 **Manual del taller**: MANUAL DE FISCALIDAD BITCOIN, Universidad de las Hespérides, Ed. 2026, Javier Bravezo Durán. Unidad 3, aps. 1–5; Unidad 4, aps. 1–6.
+
+**Doctrina privada contrastada**: Pablo Vikay, «Pools de Liquidez e Impermanent Loss: protégete con un tratamiento fiscal favorable», LinkedIn, 28 de marzo de 2022 (ver Anexo A).
+
+---
+
+## Anexo A · Contraste con la tesis Vikay (2022)
+
+La tesis de Pablo Vikay sobre pools de liquidez circula bastante y merece un contraste ordenado, porque **su diagnóstico es certero y su solución es frágil**, y conviene quedarse con lo primero sin arrastrar lo segundo.
+
+### Qué sostiene
+
+1. Ni la entrada ni la salida del pool son permutas: el LP token es un mero resguardo.
+2. La salida debe registrarse como una **pérdida de *pooling*** por el valor de mercado del activo que el AMM «ejecuta» (−60.000), más la alteración patrimonial por transmisión de ese activo (+45.000), más un **beneficio de *pooling*** por el activo recibido (+30.000), asimilado a apalancamiento/derivados o a rendimiento del capital mobiliario.
+3. Resultado: se tributa por 15.000 en lugar de por 45.000.
+4. Excepción: si se vende el LP token sin retirar los activos, la entrada se recalifica retroactivamente como permuta y el LP adquiere valor de adquisición.
+5. Los saltos intermedios de un router no deben computarse como permutas sucesivas.
+
+### Lo que hay que conservar
+
+- **El diagnóstico económico es correcto.** Tributar por 45.000 cuando solo se han recibido 30.000 es un resultado injusto, y el aviso sobre los programas que registran automáticamente un *liquidity trade* describe un problema real. La app no debe caer en él (§C6).
+- **El argumento de la intención** —el usuario entra en un pool a obtener rendimientos, no a permutar— es un argumento de calificación del art. 13 LGT, y es serio.
+- **El punto sobre los routers** es acertado y se ha incorporado como evento E4.
+- **La duda sobre la homogeneidad de los LP tokens** a efectos de FIFO es fina y sigue abierta, sobre todo tras la V0525-25 y las sentencias del TSJ del País Vasco.
+
+### Lo que no se sostiene
+
+**a) La fecha.** El artículo es de **marzo de 2022**: anterior a la V0648-24, a la V0525-25, a la V0491-26 y a la V0612-26. Es decir, anterior a todo lo que la DGT ha dicho sobre DeFi. La propia metodología de la Unidad 1 del manual —identidad de hechos, **vigencia del criterio**, existencia de pronunciamiento judicial— obliga a descontar su valor por este motivo antes que por ningún otro.
+
+**b) La V0612-26 apunta en dirección contraria a su tesis central.** Al tratar el canje ETH → rETH del staking líquido como permuta del art. 37.1.h, la DGT ha resuelto —para el caso estructuralmente más parecido que existe— que un token que representa una posición y es canjeable por el subyacente **no** es un simple resguardo. La analogía con el LP token es directa. La tesis de 2022 sigue siendo defendible, pero hoy es la tesis contraria a la línea administrativa más reciente.
+
+**c) La «pérdida de *pooling*» no tiene encaje legal.** En un pool no hay financiación, ni deuda, ni colateral. Importar la categoría de la ejecución de garantías —que el manual reserva, con razón, para el préstamo garantizado real (U3.3.2 y U4.3)— a una operación donde no hay acreedor es una analogía sin apoyo. En el IRPF no existe una «pérdida de *pooling*».
+
+**d) Da efecto fiscal a la impermanent loss, y eso choca de frente con tu propio manual.** El esquema computa −30.000 de resultado por impermanent loss (U4.5 del manual: «se trata de un lucro cesante, no de una pérdida fiscal, y no puede computarse»). Que ese −30.000 se compense después con la ganancia por transmisión no lo salva: lo que se ha hecho es introducir un lucro cesante en la base imponible. Es la contradicción más directa entre el artículo y la doctrina del taller.
+
+**e) Hay una inconsistencia interna en la compensación.** El esquema necesita que la «pérdida de *pooling*» (−60.000) y el «beneficio de *pooling*» (+30.000) se resten entre sí. Pero el propio artículo ofrece calificar el beneficio como **rendimiento del capital mobiliario**, y en la base del ahorro los rendimientos y las ganancias y pérdidas patrimoniales son **compartimentos distintos**, con compensación cruzada limitada al 25 % (art. 49 LIRPF). Si el beneficio es RCM, la compensación que el esquema da por supuesta no se produce, y el resultado deja de ser 15.000.
+
+**f) La recalificación retroactiva no funciona.** Sostener que la entrada al pool «se convierte» en permuta *a posteriori*, si más tarde se vende el LP token, hace depender la calificación de un hecho pasado de un hecho futuro y ajeno. O el LP token se incorporó al patrimonio con un valor, o no. No caben las dos cosas según convenga.
+
+### La conclusión práctica
+
+Vikay llega a **una cifra defendible (15.000) por un camino que no lo es**. Y la cifra es defendible porque el problema real no era la calificación como permuta, sino la **valoración** por el mayor de los dos valores aplicada a un evento sintético (§C6). Por esa vía —precio medio efectivamente obtenido frente a valor de mercado del activo entregado— se llega al mismo 15.000 sin inventar categorías, sin computar lucro cesante y sin depender de compensaciones entre compartimentos que la ley no permite.
+
+Para la app, la consecuencia es concreta y es la de §C6: **registrar los dos valores**. El que exige la regla del art. 37.1.h y el efectivamente obtenido. Con ambos en el Libro, el alumno puede declarar por el criterio prudente y conservar, documentada, la base para defender el otro.
