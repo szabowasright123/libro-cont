@@ -12,7 +12,7 @@
  * Determinista y TypeScript puro (Regla de oro 4). No lanza: acumula avisos.
  */
 
-import { type Apunte, type IdApunte, CATALOGO_TIPOS } from './types'
+import { type Apunte, type IdApunte, CATALOGO_TIPOS, ETIQUETA_EVENTO, esZonaGris } from './types'
 import { D } from './decimal'
 import { calcularFifo } from './fifo'
 
@@ -130,6 +130,24 @@ export function validarApunte(ap: Apunte): Aviso[] {
   const hayComCant = !!ap.comisionCantidad && D(ap.comisionCantidad).greaterThan(0)
   if (hayComCant && !ap.comisionActivo) {
     push('error', 'COMISION_SIN_ACTIVO', 'La comisión tiene cantidad pero no activo.')
+  }
+
+  // 5. Zona gris DeFi: los eventos sin criterio administrativo publicado exigen dejar
+  //    constancia del criterio aplicado (DEFI §9). Es AVISO, no error: no debe impedir
+  //    registrar el hecho —el principio de integridad manda anotar TODO movimiento—,
+  //    pero sin esa nota la posición no es defendible ante una comprobación.
+  if (esZonaGris(ap.evento) && !ap.criterioAplicado?.trim()) {
+    push(
+      'aviso',
+      'ZONA_GRIS_SIN_CRITERIO',
+      `${ETIQUETA_EVENTO[ap.evento!]} no tiene criterio administrativo publicado: ` +
+        'deja constancia del criterio aplicado y su fundamento.',
+    )
+  }
+
+  // 6. Coherencia de la dimensión DeFi: el criterio y el protocolo cuelgan del evento.
+  if (!ap.evento && ap.criterioAplicado?.trim()) {
+    push('aviso', 'CRITERIO_SIN_EVENTO', 'Hay criterio aplicado pero el apunte no declara evento DeFi.')
   }
 
   return avisos

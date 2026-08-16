@@ -13,6 +13,7 @@
 import type {
   Activo,
   Apunte,
+  Posicion,
   RefUbicacion,
   SimboloActivo,
   Tolerancias,
@@ -59,6 +60,11 @@ export interface SnapshotLibro {
   justificantes: JustificanteSerializable[]
   /** Saldos reales del cuadre (declarados por el alumno). */
   cuadreReal: SaldoRealDeclarado[]
+  /**
+   * Posiciones DeFi (D1). Opcional en el tipo para que las copias v1 —anteriores a los
+   * eventos DeFi— sigan restaurándose sin tocarlas; `migrar` la normaliza a [].
+   */
+  posiciones?: Posicion[]
 }
 
 /** Datos mínimos para construir un snapshot (los opcionales se rellenan por defecto). */
@@ -69,6 +75,7 @@ export interface EntradaSnapshot {
   tolerancias: Tolerancias
   justificantes?: JustificanteSerializable[]
   cuadreReal?: SaldoRealDeclarado[]
+  posiciones?: Posicion[]
   exportadoEn?: string
 }
 
@@ -84,6 +91,7 @@ export function construirSnapshot(datos: EntradaSnapshot): SnapshotLibro {
     tolerancias: datos.tolerancias,
     justificantes: datos.justificantes ?? [],
     cuadreReal: datos.cuadreReal ?? [],
+    posiciones: datos.posiciones ?? [],
   }
 }
 
@@ -151,6 +159,7 @@ export function parsearSnapshot(texto: string): SnapshotLibro {
     tolerancias,
     justificantes: arr<JustificanteSerializable>(o.justificantes),
     cuadreReal: arr<SaldoRealDeclarado>(o.cuadreReal),
+    posiciones: arr<Posicion>(o.posiciones),
   })
 }
 

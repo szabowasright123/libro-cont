@@ -12,7 +12,7 @@
  * (src/data/repositorio.ts).
  */
 import Dexie, { type Table } from 'dexie'
-import type { Activo, Ubicacion } from '../engine/types'
+import type { Activo, Posicion, Ubicacion } from '../engine/types'
 import { ACTIVOS_BASE, TOLERANCIAS_POR_DEFECTO } from '../engine/types'
 import {
   type ApunteRegistro,
@@ -32,6 +32,7 @@ export class LibroDB extends Dexie {
   activos!: Table<Activo, string>
   parametros!: Table<ParametrosRegistro, string>
   precios!: Table<PrecioRegistro, string>
+  posiciones!: Table<Posicion, string>
 
   constructor() {
     super('libro-hesperides')
@@ -165,6 +166,24 @@ export class LibroDB extends Dexie {
           }
         }
       })
+
+    // ── Esquema v8 (D1, eventos DeFi): nueva tabla `posiciones` y nuevo índice
+    //    `posicionId` en apuntes, para reconstruir una posición (aportación →
+    //    recompensas → retirada) sin recorrer todo el diario.
+    //
+    //    Los cuatro campos nuevos del apunte (evento, posicionId, protocolo,
+    //    criterioAplicado) son OPCIONALES y ortogonales al catálogo cerrado: los
+    //    apuntes anteriores quedan válidos sin tocarlos, así que esta versión NO
+    //    necesita migración de datos. La tabla `posiciones` nace vacía.
+    this.version(8).stores({
+      apuntes: 'uid, id, fechaHora, tipo, activoEntrada, activoSalida, posicionId',
+      ubicaciones: 'id, nombre, kyc',
+      justificantes: 'id, apunteUid, rutaConvencional',
+      activos: 'simbolo',
+      parametros: 'clave',
+      precios: 'activo',
+      posiciones: 'id, protocolo, tipoPosicion, estado',
+    })
   }
 }
 

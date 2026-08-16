@@ -302,7 +302,42 @@ export interface Activo {
   decimales: number
   /** ¿Es moneda fiat de cuenta (EUR)? Los fiat no abren cola FIFO cripto. */
   esFiat: boolean
+
+  // ── Activos derivados (D1) ────────────────────────────────────────────────
+
+  /**
+   * Activo subyacente, si este es un derivado (WBTC → BTC, rETH → ETH).
+   * INFORMATIVO: no funde colas FIFO. La regla de identidad de DOMINIO §3.3 sigue
+   * intacta — BTC ≠ WBTC son activos distintos con colas independientes.
+   */
+  subyacente?: SimboloActivo
+
+  /** Qué es este activo respecto de su subyacente. */
+  naturaleza?: NaturalezaActivo
+
+  /**
+   * Modo de rebase, cuando lo hay (DEFI §A3). Determina el tratamiento periódico y es
+   * OPUESTO en cada caso: `cantidad` (el saldo crece, hay acreditación imputable como
+   * RCM) frente a `valor` (el saldo no cambia, la renta aflora entera en la permuta
+   * de salida). No confundirlos es la razón de que este campo exista.
+   */
+  rebase?: 'cantidad' | 'valor'
+
+  /**
+   * ¿Abre cola FIFO propia? Por defecto sí (undefined = true). Se marca `false` en los
+   * resguardos de posición que, bajo la tesis benévola validada para los pools
+   * (DEFI §C1), no son elementos patrimoniales con coste propio sino meros recibos:
+   * el LP token entra en el catálogo solo para que la posición sea reconstruible.
+   */
+  computaEnFifo?: boolean
 }
+
+/** Qué es un activo respecto de su subyacente (DEFI §1). */
+export type NaturalezaActivo =
+  | 'envoltorio'
+  | 'recibo-posicion'
+  | 'token-deuda'
+  | 'token-gobernanza'
 
 /** Activos de serie (DOMINIO §3.3): BTC y EUR. El resto los añade el alumno. */
 export const ACTIVOS_BASE: readonly Activo[] = [
@@ -351,6 +386,123 @@ export interface Apunte {
 
   /** AJUSTE: apunte al que rectifica (+ causa en notas). Obligatorio en AJUSTE. */
   rectificaA?: IdApunte
+
+  // ── Dimensión DeFi (D1) ───────────────────────────────────────────────────
+  // Los cuatro campos siguientes son ORTOGONALES al catálogo cerrado: nombran el
+  // hecho económico del que este apunte es una pata, sin alterar su `tipo` ni su
+  // calificación fiscal. Ver docs/DEFI_EVENTOS_COMPLEJOS.md §1.
+
+  /** Evento DeFi del que este apunte es una pata. */
+  evento?: EventoDeFi
+
+  /** Agrupa las patas de una misma posición a lo largo del tiempo (id de `Posicion`). */
+  posicionId?: string
+
+  /** Protocolo (Aave, Lido, Uniswap v3…). Necesario para la prueba y el modelo 721. */
+  protocolo?: string
+
+  /**
+   * Criterio aplicado en los supuestos sin criterio administrativo publicado.
+   * OBLIGATORIO cuando el evento es de zona gris (`EVENTOS_ZONA_GRIS`).
+   */
+  criterioAplicado?: string
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 4 bis. Dimensión DeFi (docs/DEFI_EVENTOS_COMPLEJOS.md)
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Catálogo de eventos DeFi. NO es una ampliación del catálogo cerrado de tipos: cada
+ * evento se descompone en patas, y cada pata es un apunte de uno de los 11 tipos.
+ * Este enum solo nombra el hecho económico del que la pata procede.
+ */
+export type EventoDeFi =
+  | 'STAKING_CENTRALIZADO'
+  | 'STAKING_NATIVO'
+  | 'STAKING_LIQUIDO'
+  | 'LENDING_PRESTAMISTA'
+  | 'LENDING_PRESTATARIO'
+  | 'EJECUCION_GARANTIA'
+  | 'POOL_APORTACION'
+  | 'POOL_RECOMPENSA'
+  | 'POOL_RETIRADA'
+  | 'VAULT'
+  | 'DERIVADO'
+  | 'WRAPPING'
+  | 'BRIDGE'
+  | 'ROUTER_MULTIHOP'
+  | 'HARD_FORK'
+  | 'AIRDROP_CONDICIONADO'
+  | 'LOCKING'
+
+/** Etiquetas de presentación (es-ES, con acentos). */
+export const ETIQUETA_EVENTO: Record<EventoDeFi, string> = {
+  STAKING_CENTRALIZADO: 'Staking en plataforma',
+  STAKING_NATIVO: 'Staking nativo o delegación',
+  STAKING_LIQUIDO: 'Staking líquido',
+  LENDING_PRESTAMISTA: 'Préstamo (prestamista)',
+  LENDING_PRESTATARIO: 'Préstamo (prestatario)',
+  EJECUCION_GARANTIA: 'Ejecución de la garantía',
+  POOL_APORTACION: 'Aportación a pool',
+  POOL_RECOMPENSA: 'Recompensa de pool',
+  POOL_RETIRADA: 'Retirada de pool',
+  VAULT: 'Vault autocompuesto',
+  DERIVADO: 'Derivado por diferencias',
+  WRAPPING: 'Wrapping',
+  BRIDGE: 'Bridge',
+  ROUTER_MULTIHOP: 'Intercambio con saltos intermedios',
+  HARD_FORK: 'Hard fork',
+  AIRDROP_CONDICIONADO: 'Airdrop condicionado',
+  LOCKING: 'Bloqueo de gobernanza',
+}
+
+/**
+ * Eventos SIN criterio administrativo publicado (DEFI §9). En ellos la app aplica una
+ * tesis por defecto pero EXIGE dejar constancia del criterio aplicado: es la diferencia
+ * entre una posición defendible y una pérdida no justificada del art. 33.5.a LIRPF.
+ */
+export const EVENTOS_ZONA_GRIS: readonly EventoDeFi[] = [
+  'STAKING_LIQUIDO',
+  'LENDING_PRESTATARIO',
+  'POOL_APORTACION',
+  'POOL_RETIRADA',
+  'VAULT',
+  'WRAPPING',
+  'BRIDGE',
+  'ROUTER_MULTIHOP',
+  'HARD_FORK',
+  'AIRDROP_CONDICIONADO',
+  'LOCKING',
+]
+
+/** ¿Este evento exige dejar constancia del criterio aplicado? */
+export function esZonaGris(evento: EventoDeFi | undefined): boolean {
+  return evento !== undefined && EVENTOS_ZONA_GRIS.includes(evento)
+}
+
+/** Naturaleza de una posición abierta en un protocolo. */
+export type TipoPosicion = 'staking' | 'lending' | 'pool' | 'vault' | 'derivado' | 'locking'
+
+/** Estado del ciclo de vida de una posición. */
+export type EstadoPosicion = 'abierta' | 'cerrada' | 'liquidada'
+
+/**
+ * Una POSICIÓN en un protocolo, que agrupa las patas de un mismo hecho económico a lo
+ * largo del tiempo (aportación → recompensas → retirada).
+ *
+ * NO participa en SALDOS ni en FIFO: es un índice sobre los apuntes. Por eso no guarda
+ * los activos aportados —se derivan de los apuntes que la referencian—, evitando un
+ * duplicado que podría desincronizarse del Libro.
+ */
+export interface Posicion {
+  readonly id: string
+  protocolo: string
+  tipoPosicion: TipoPosicion
+  fechaApertura: FechaHoraISO
+  fechaCierre?: FechaHoraISO
+  estado: EstadoPosicion
+  notas?: string
 }
 
 // ────────────────────────────────────────────────────────────────────────────

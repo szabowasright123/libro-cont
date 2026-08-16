@@ -9,7 +9,7 @@
  * Sin lógica de cálculo (esa vive en src/engine). Aquí: CRUD + integridad
  * referencial (no borrar ubicación/activo con apuntes) + renumeración.
  */
-import type { Activo, Apunte, Justificante, Ubicacion, Tolerancias } from '../engine/types'
+import type { Activo, Apunte, Justificante, Posicion, Ubicacion, Tolerancias } from '../engine/types'
 import { UBICACION_EXTERIOR, ACTIVOS_BASE, TOLERANCIAS_POR_DEFECTO } from '../engine/types'
 import { db, cryptoRandomId, sembrarSiVacia } from './db'
 import {
@@ -293,6 +293,63 @@ export async function guardarPrecio(
 /** Borra el precio manual de un activo. */
 export async function borrarPrecio(activo: string): Promise<void> {
   await db.precios.delete(activo)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Posiciones DeFi (D1) — índice sobre los apuntes, NO participa en el cálculo
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Todas las posiciones, más recientes primero por fecha de apertura. */
+export async function listarPosiciones(): Promise<Posicion[]> {
+  const todas = await db.posiciones.toArray()
+  return todas.sort((a, b) => b.fechaApertura.localeCompare(a.fechaApertura))
+}
+
+/** Crea una posición y devuelve su id (generado si no se aporta). */
+export async function crearPosicion(datos: Omit<Posicion, 'id'> & { id?: string }): Promise<string> {
+  const id = datos.id ?? cryptoRandomId()
+  await db.posiciones.add({ ...datos, id })
+  return id
+}
+
+/** Actualiza los campos mutables de una posición. */
+export async function actualizarPosicion(
+  id: string,
+  cambios: Partial<Omit<Posicion, 'id'>>,
+): Promise<void> {
+  await db.posiciones.update(id, cambios)
+}
+
+/** Nº de apuntes que cuelgan de una posición (para avisar antes de borrarla). */
+export async function apuntesConPosicion(id: string): Promise<number> {
+  return db.apuntes.where('posicionId').equals(id).count()
+}
+
+/**
+ * Borra una posición. Los apuntes que la referencian NO se borran —el Libro manda—:
+ * se les quita el `posicionId` para no dejar referencias colgando. Se rechaza el
+ * borrado si hay apuntes, salvo que se fuerce, para que no sea una pérdida silenciosa.
+ */
+export async function eliminarPosicion(id: string, forzar = false): Promise<void> {
+  await db.transaction('rw', [db.posiciones, db.apuntes], async () => {
+    const colgando = await db.apuntes.where('posicionId').equals(id).toArray()
+    if (colgando.length > 0 && !forzar) {
+      throw new Error(
+        `La posición ${id} tiene ${colgando.length} apunte(s). Desvincúlalos o fuerza el borrado.`,
+      )
+    }
+    for (const ap of colgando) await db.apuntes.update(ap.uid, { posicionId: undefined })
+    await db.posiciones.delete(id)
+  })
+}
+
+/** Apuntes que forman parte de una posición, en orden cronológico. */
+export async function apuntesDePosicion(id: string): Promise<Apunte[]> {
+  const registros = await db.apuntes.where('posicionId').equals(id).toArray()
+  registros.sort(
+    (a, b) => a.fechaHora.localeCompare(b.fechaHora) || a.creadoEn.localeCompare(b.creadoEn),
+  )
+  return aDominio(registros)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -587,12 +644,14 @@ export async function registrarCopiaRealizada(fechaISO: string, nApuntes: number
 
 /** Foto completa del Libro para la copia JSON nativa (incluye justificantes y cuadre). */
 export async function snapshotActual(): Promise<EntradaSnapshot> {
-  const [contenido, registrosApuntes, justificantesRaw, cuadreReal] = await Promise.all([
-    exportarContenidoActual(),
-    db.apuntes.toArray(),
-    db.justificantes.toArray(),
-    obtenerCuadreReal(),
-  ])
+  const [contenido, registrosApuntes, justificantesRaw, cuadreReal, posiciones] =
+    await Promise.all([
+      exportarContenidoActual(),
+      db.apuntes.toArray(),
+      db.justificantes.toArray(),
+      obtenerCuadreReal(),
+      db.posiciones.toArray(),
+    ])
   const correlativoPorUid = new Map(registrosApuntes.map((r) => [r.uid, r.id]))
   const justificantes = await Promise.all(
     justificantesRaw.map((j) => justificanteASerializable(j, correlativoPorUid)),
@@ -604,6 +663,7 @@ export async function snapshotActual(): Promise<EntradaSnapshot> {
     tolerancias: contenido.tolerancias ?? { ...TOLERANCIAS_POR_DEFECTO },
     justificantes,
     cuadreReal,
+    posiciones,
   }
 }
 
@@ -614,7 +674,15 @@ export async function snapshotActual(): Promise<EntradaSnapshot> {
 export async function restaurarSnapshot(snapshot: SnapshotLibro): Promise<CambioNumero[]> {
   return db.transaction(
     'rw',
-    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros, db.precios],
+    [
+      db.apuntes,
+      db.ubicaciones,
+      db.activos,
+      db.justificantes,
+      db.parametros,
+      db.precios,
+      db.posiciones,
+    ],
     async () => {
       await Promise.all([
         db.apuntes.clear(),
@@ -622,7 +690,13 @@ export async function restaurarSnapshot(snapshot: SnapshotLibro): Promise<Cambio
         db.activos.clear(),
         db.justificantes.clear(),
         db.precios.clear(),
+        db.posiciones.clear(),
       ])
+      // Las posiciones se restauran ANTES que los apuntes: así ningún apunte queda,
+      // ni transitoriamente, con un `posicionId` que no resuelve.
+      if (snapshot.posiciones?.length) {
+        await db.posiciones.bulkAdd(snapshot.posiciones.map((p) => ({ ...p })))
+      }
       await db.activos.bulkAdd(conActivosBase(snapshot.activos))
       if (snapshot.ubicaciones.length > 0) await db.ubicaciones.bulkAdd(snapshot.ubicaciones.map((u) => ({ ...u })))
       if (snapshot.apuntes.length > 0) await db.apuntes.bulkAdd(snapshot.apuntes.map(apunteARegistro))
@@ -656,7 +730,15 @@ export async function restaurarSnapshot(snapshot: SnapshotLibro): Promise<Cambio
 export async function borrarTodo(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros, db.precios],
+    [
+      db.apuntes,
+      db.ubicaciones,
+      db.activos,
+      db.justificantes,
+      db.parametros,
+      db.precios,
+      db.posiciones,
+    ],
     async () => {
       await Promise.all([
         db.apuntes.clear(),
@@ -665,6 +747,7 @@ export async function borrarTodo(): Promise<void> {
         db.justificantes.clear(),
         db.parametros.clear(),
         db.precios.clear(),
+        db.posiciones.clear(),
       ])
       await db.activos.bulkAdd(ACTIVOS_BASE.map((a) => ({ ...a })))
       await db.parametros.add({
@@ -713,7 +796,15 @@ export async function libroVacio(): Promise<boolean> {
 export async function cargarCasoDemo(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.apuntes, db.ubicaciones, db.activos, db.justificantes, db.parametros, db.precios],
+    [
+      db.apuntes,
+      db.ubicaciones,
+      db.activos,
+      db.justificantes,
+      db.parametros,
+      db.precios,
+      db.posiciones,
+    ],
     async () => {
       await Promise.all([
         db.apuntes.clear(),
@@ -721,6 +812,7 @@ export async function cargarCasoDemo(): Promise<void> {
         db.activos.clear(),
         db.justificantes.clear(),
         db.precios.clear(),
+        db.posiciones.clear(),
       ])
       await db.activos.bulkAdd(conActivosBase(ACTIVOS_CASO_DEMO))
       await db.ubicaciones.bulkAdd(UBICACIONES_CASO_DEMO.map((u) => ({ ...u })))

@@ -494,7 +494,7 @@ Y una advertencia que el manual hace y conviene que la app repita: el **FIFO glo
 | Fase | Contenido | Criterio de aceptación |
 |---|---|---|
 | **D0** | Comisiones en cripto (§8) | Golden test nuevo: cartera con gas en ETH; SALDOS y FIFO siguen conciliados |
-| **D1** | Campos `evento`, `posicionId`, `protocolo`, `criterioAplicado` + entidad `Posicion` + migración Dexie | Los 289 tests actuales siguen en verde |
+| **D1** ✅ | Campos `evento`, `posicionId`, `protocolo`, `criterioAplicado` + entidad `Posicion` + migración Dexie v8 | Hecho: 302 tests en verde, golden intactos |
 | **D2** | Familias A y B completas (staking, lending de ambos lados, ejecución de garantía) | Caso de ejemplo ampliado; cuadre verde |
 | **D3** | Familia C (pools): tesis benévola + valoración por precio efectivo | Test del ejemplo de §C6: la permuta neta es 5 ETH por 30.000 DAI |
 | **D4** | Detector del art. 33.5.e (§4.3) | Batería de casos límite: recompra a los 11 meses, a los 13, compra previa a la venta |
