@@ -46,7 +46,7 @@ function Pagina({ ruta }: { ruta: Ruta }) {
       return <AcercaPage />
     case 'ajustes':
       return (
-        <Suspense fallback={<p className="text-sm text-stone-500">Cargando Ajustes…</p>}>
+        <Suspense fallback={<p className="text-sm text-stone-500 dark:text-slate-400">Cargando Ajustes…</p>}>
           <AjustesPage />
         </Suspense>
       )
@@ -57,8 +57,8 @@ export function AppShell() {
   const ruta = useRuta()
 
   return (
-    <div className="min-h-full bg-stone-50 text-stone-900">
-      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/90 backdrop-blur">
+    <div className="min-h-full bg-stone-50 text-stone-900 dark:bg-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2.5">
           <button
             type="button"
@@ -67,15 +67,15 @@ export function AppShell() {
           >
             <IconoApp />
             <span className="leading-tight">
-              <span className="block text-base font-semibold tracking-tight text-stone-900">
+              <span className="block text-base font-semibold tracking-tight text-stone-900 dark:text-slate-50">
                 Libro Hespérides
               </span>
-              <span className="block text-[11px] text-stone-500">Taller de Bitcoin 2026</span>
+              <span className="block text-[11px] text-stone-500 dark:text-slate-400">Taller de Bitcoin 2026</span>
             </span>
           </button>
 
           <nav
-            className="ml-auto flex items-center gap-1 rounded-lg border border-stone-200 bg-stone-100 p-1"
+            className="ml-auto flex items-center gap-1 rounded-lg border border-stone-200 bg-stone-100 p-1 dark:border-slate-700 dark:bg-slate-800/70"
             aria-label="Secciones"
           >
             {RUTAS.map(({ ruta: r, etiqueta }) => (
@@ -88,8 +88,10 @@ export function AppShell() {
                   'rounded-md px-3 py-1.5 text-sm font-medium transition-colors ' +
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ' +
                   (ruta === r
-                    ? 'border border-brand-200 bg-white font-semibold text-brand-700 shadow-sm'
-                    : 'border border-transparent text-stone-600 hover:bg-white/70 hover:text-stone-900')
+                    ? 'border border-brand-200 bg-white font-semibold text-brand-700 shadow-sm ' +
+                      'dark:border-brand-500/60 dark:bg-slate-900 dark:text-brand-200'
+                    : 'border border-transparent text-stone-600 hover:bg-white/70 hover:text-stone-900 ' +
+                      'dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-slate-50')
                 }
               >
                 {etiqueta}
@@ -97,7 +99,7 @@ export function AppShell() {
             ))}
           </nav>
 
-          <span className="hidden shrink-0 font-mono text-xs text-stone-400 sm:inline">
+          <span className="hidden shrink-0 font-mono text-xs text-stone-400 sm:inline dark:text-slate-300">
             v{__APP_VERSION__}
           </span>
         </div>
@@ -107,7 +109,7 @@ export function AppShell() {
         <Pagina ruta={ruta} />
       </main>
 
-      <footer className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-stone-400 print:hidden">
+      <footer className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-stone-400 print:hidden dark:text-slate-300">
         <button
           type="button"
           onClick={() => irA('acerca')}

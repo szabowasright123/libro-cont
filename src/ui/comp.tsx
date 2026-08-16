@@ -18,6 +18,7 @@ export const BTN_PELIGRO = `${BTN} border border-red-300 bg-white text-red-700 h
 /** Clases para una tecla (`<kbd>`) en textos de ayuda. */
 export const KBD =
   'rounded border border-stone-300 bg-stone-100 px-1 font-mono text-[10px] text-stone-600 ' +
+  'dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 ' +
   'dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300'
 
 /** Clases de input/select reutilizables. */

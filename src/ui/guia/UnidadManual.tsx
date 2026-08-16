@@ -40,7 +40,7 @@ export function UnidadManual({ ruta }: { ruta: Ruta }) {
   return (
     <aside
       aria-label="Unidad del manual"
-      className="rounded-lg border border-brand-200 bg-brand-50/60 text-sm dark:border-amber-900/50 dark:bg-amber-950/20"
+      className="rounded-lg border border-brand-200 bg-brand-50/60 text-sm dark:border-amber-800/60 dark:bg-amber-950/60"
     >
       <button
         type="button"
@@ -54,7 +54,7 @@ export function UnidadManual({ ruta }: { ruta: Ruta }) {
         <span className="font-semibold text-brand-700 dark:text-amber-100">
           Unidad del manual
         </span>
-        <span className="text-xs font-normal text-stone-500 dark:text-amber-300/70">
+        <span className="text-xs font-normal text-stone-600 dark:text-amber-200">
           · {unidad.bloque}
         </span>
         <span aria-hidden="true" className="ml-auto text-brand-600 dark:text-amber-400">
@@ -62,12 +62,12 @@ export function UnidadManual({ ruta }: { ruta: Ruta }) {
         </span>
       </button>
       {!plegado && (
-        <div className="space-y-2 px-3 pb-3 text-stone-700 dark:text-amber-100/80">
+        <div className="space-y-2 px-3 pb-3 text-stone-700 dark:text-amber-50">
           <p className="font-medium">{unidad.pista}</p>
           {unidad.texto ? (
             <p className="text-[13px] leading-relaxed">{unidad.texto}</p>
           ) : (
-            <p className="text-xs text-stone-500 dark:text-amber-300/60">
+            <p className="text-xs text-stone-500 dark:text-amber-200/80">
               Texto de la unidad pendiente del literal del manual ({unidad.clave}).
             </p>
           )}

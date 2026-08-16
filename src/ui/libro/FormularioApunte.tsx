@@ -587,7 +587,7 @@ function SubtipoPerdidaBloque({
 }) {
   const def = SUBTIPOS_PERDIDA[valor]
   return (
-    <fieldset className="space-y-2 rounded-md border border-brand-200 bg-brand-50/50 p-3">
+    <fieldset className="space-y-2 rounded-md border border-brand-200 bg-brand-50/50 p-3 dark:border-brand-500/40 dark:bg-brand-700/15">
       <legend className="px-1 text-sm font-medium text-brand-700">
         Subtipo de la pérdida (criterio fiscal y prueba)
       </legend>

@@ -243,7 +243,7 @@ export function ArchivoPage() {
                   <h3 className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
                     <span className="font-mono text-xs text-slate-400">{c.ruta}/</span>
                     {c.etiqueta}
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-500 dark:bg-slate-800">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                       {filas.length}
                     </span>
                   </h3>

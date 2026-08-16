@@ -106,7 +106,7 @@ export function CarteraPage() {
         <header>
           <h1 className="text-2xl font-bold tracking-tight text-stone-900">Cartera</h1>
         </header>
-        <div className="rounded-lg border border-stone-200 bg-white p-8 text-center">
+        <div className="rounded-lg border border-stone-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
           <p className="text-stone-600">
             Aún no hay apuntes: no hay cartera que valorar. Registra operaciones en el Diario o
             carga el caso de ejemplo para verla en acción.
@@ -125,7 +125,7 @@ export function CarteraPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-stone-900">Cartera</h1>
-          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-0.5 text-xs text-brand-700">
+          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-0.5 text-xs text-brand-700 dark:border-brand-500/50 dark:bg-brand-700/25 dark:text-brand-100">
             Precios manuales
             {fechaPrecios ? ` · introducidos el ${fmtFecha(fechaPrecios)}` : ''} · nada sale de tu
             navegador
@@ -175,11 +175,11 @@ export function CarteraPage() {
 
           {/* Gráficos. */}
           <section className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-lg border border-stone-200 bg-white p-4">
+            <div className="rounded-lg border border-stone-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
               <h2 className="mb-2 text-sm font-semibold text-stone-700">Distribución por activo</h2>
               <GraficoDistribucion resumen={resumen} />
             </div>
-            <div className="rounded-lg border border-stone-200 bg-white p-4">
+            <div className="rounded-lg border border-stone-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
               <h2 className="mb-2 text-sm font-semibold text-stone-700">
                 GyP realizada por ejercicio
               </h2>
@@ -223,7 +223,8 @@ function Tarjeta({
   return (
     <div
       className={
-        'rounded-lg border bg-white p-3 ' + (acentuada ? 'border-brand-200' : 'border-stone-200')
+        'rounded-lg border bg-white p-3 dark:bg-slate-900 ' +
+        (acentuada ? 'border-brand-200 dark:border-brand-500/50' : 'border-stone-200 dark:border-slate-700')
       }
     >
       <div className="text-xs text-stone-500">{etiqueta}</div>
@@ -329,7 +330,7 @@ function TablaPosiciones({
       <h2 className="text-lg font-semibold text-stone-900">Posiciones</h2>
       <div className="overflow-x-auto rounded-md border border-stone-200">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-500">
+          <thead className="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-500 dark:bg-slate-800/60">
             <tr>
               <th className="px-3 py-2 font-medium">Activo</th>
               <th className="px-3 py-2 text-right font-medium">Saldo</th>
@@ -346,7 +347,7 @@ function TablaPosiciones({
               if (asignarRef) primerAsignado = true
               const valorInput = edicion[p.activo] ?? (p.precioEur ? fmtDecimal(p.precioEur) : '')
               return (
-                <tr key={p.activo} className="hover:bg-stone-50">
+                <tr key={p.activo} className="hover:bg-stone-50 dark:hover:bg-slate-800/50">
                   <td className="px-3 py-2">
                     <span className="inline-flex items-center gap-2">
                       <span

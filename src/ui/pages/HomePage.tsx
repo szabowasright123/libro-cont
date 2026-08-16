@@ -164,7 +164,7 @@ export function HomePage() {
           Empezar con mi libro vacío
         </button>
         {demoCargada && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-0.5 text-xs text-brand-700">
+          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-0.5 text-xs text-brand-700 dark:border-brand-500/50 dark:bg-brand-700/25 dark:text-brand-100">
             Estás viendo el caso de ejemplo — se borra desde Ajustes
           </span>
         )}
@@ -190,7 +190,7 @@ export function HomePage() {
 
       <section
         aria-live="polite"
-        className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
+        className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
       >
         <dl className="grid gap-2 text-sm sm:grid-cols-2">
           <div className="flex items-center justify-between gap-4">
@@ -230,7 +230,7 @@ export function HomePage() {
                 <button
                   type="button"
                   onClick={() => irA(paso.ruta)}
-                  className="group flex w-full items-center gap-4 rounded-lg border border-stone-200 bg-white p-3 text-left shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  className="group flex w-full items-center gap-4 rounded-lg border border-stone-200 bg-white p-3 text-left shadow-sm transition-colors hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-brand-500/50 dark:hover:bg-slate-800"
                 >
                   <span
                     aria-hidden="true"
