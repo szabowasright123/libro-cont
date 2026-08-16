@@ -203,8 +203,9 @@ describe('fiscal · textos manuales (Regla de oro 5)', () => {
       expect(c.explicacion).not.toBe(MARCADOR_TEXTO)
       expect(c.fechaCriterio).not.toBe(MARCADOR_TEXTO)
       expect(c.explicacion.length).toBeGreaterThan(0)
-      // La fecha de criterio lleva la marca de verificación del responsable.
-      expect(c.fechaCriterio).toContain('Verificado a 6-8-2026')
+      // La fecha de criterio lleva la marca de verificación del responsable. Los cajones
+      // originales se verificaron el 6-8-2026; el de derivados nació con D6, el 16-8-2026.
+      expect(c.fechaCriterio).toMatch(/Verificado a (6|16)-8-2026/)
     }
   })
 
@@ -213,9 +214,9 @@ describe('fiscal · textos manuales (Regla de oro 5)', () => {
     expect(NOTA_172_173).toContain('172')
   })
 
-  it('el catálogo de ranuras cubre los 5 cajones (×2) + 721 + 172/173', () => {
+  it('el catálogo de ranuras cubre los 6 cajones (×2) + 721 + 172/173', () => {
     // 5 conceptos × 2 ranuras + aviso-721 + nota-172-173 = 12
-    expect(RANURAS_TEXTO_MANUAL).toHaveLength(12)
+    expect(RANURAS_TEXTO_MANUAL).toHaveLength(14) // 6 cajones × 2 + 721 + 172/173
     expect(RANURAS_TEXTO_MANUAL.some((r) => r.clave === 'aviso-721')).toBe(true)
     expect(RANURAS_TEXTO_MANUAL.some((r) => r.clave === 'nota-172-173')).toBe(true)
   })

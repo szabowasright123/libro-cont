@@ -10,12 +10,16 @@ import {
   type TipoOperacion,
 } from './types'
 
-// Test de humo del módulo de tipos: verifica que el catálogo cerrado de 11 tipos
+// Test de humo del módulo de tipos: verifica que el catálogo cerrado de 12 tipos
 // existe y que sus flags coinciden con la Tabla 7 del DOMINIO. No es lógica de motor.
 
 describe('Catálogo cerrado de tipos de operación (DOMINIO §3.3)', () => {
-  it('contiene exactamente los 11 tipos del catálogo cerrado', () => {
-    expect(TIPOS_OPERACION).toHaveLength(11)
+  it('contiene exactamente los 12 tipos del catálogo cerrado', () => {
+    // Doce desde D6: el duodécimo es LIQUIDACION_DERIVADO (DEFI §7, decisión del autor
+    // 16-08-2026). Que este número esté fijado es lo que impide que se cuelen tipos nuevos
+    // por comodidad de implementación, que es lo que la regla de oro 7 protege.
+    expect(TIPOS_OPERACION).toHaveLength(12)
+    expect(TIPOS_OPERACION).toContain('LIQUIDACION_DERIVADO')
     const esperados: TipoOperacion[] = [
       'COMPRA',
       'VENTA',
@@ -28,6 +32,7 @@ describe('Catálogo cerrado de tipos de operación (DOMINIO §3.3)', () => {
       'PERDIDA',
       'DONACION',
       'AJUSTE',
+      'LIQUIDACION_DERIVADO',
     ]
     expect(new Set(TIPOS_OPERACION)).toEqual(new Set(esperados))
   })

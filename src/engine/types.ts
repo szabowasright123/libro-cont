@@ -7,7 +7,7 @@
  * Reglas de oro que este módulo materializa:
  *  - Nunca aritmética float para cantidades ni euros: los decimales viven como STRING
  *    (`CantidadDecimal` / `EuroDecimal`) y se operan con decimal.js en el motor. (Regla 2)
- *  - Catálogo CERRADO de 11 tipos de operación. No añadir tipos. (Regla 7)
+ *  - Catálogo CERRADO de 12 tipos de operación. No añadir tipos. (Regla 7)
  *  - FIFO en cola ÚNICA global por activo. (Regla 8)
  *
  * Este fichero es solo tipos y catálogos: sin lógica de cálculo (esa vive en el motor,
@@ -59,8 +59,15 @@ export type RefUbicacion = string | UbicacionExterior
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * Los 11 tipos del catálogo cerrado. Unión literal ASCII en mayúsculas.
- * (MINERÍA→MINERIA, PÉRDIDA→PERDIDA, DONACIÓN→DONACION, AJUSTE/RECTIFICACIÓN→AJUSTE.)
+ * Los 12 tipos del catálogo cerrado. Unión literal ASCII en mayúsculas.
+ * (MINERÍA→MINERIA, PÉRDIDA→PERDIDA, DONACIÓN→DONACION, AJUSTE/RECTIFICACIÓN→AJUSTE,
+ *  LIQUIDACIÓN DE DERIVADO→LIQUIDACION_DERIVADO.)
+ *
+ * El duodécimo tipo se añadió en la fase D6 por decisión del autor (16-08-2026): los
+ * derivados liquidados por diferencias no encajaban en ninguno de los once anteriores
+ * —VENTA consumiría un lote que nunca se entregó, RENDIMIENTO los calificaría como RCM y
+ * AIRDROP los llevaría a la base general— y el catálogo de 2026 no los contemplaba.
+ * Ver docs/DEFI_EVENTOS_COMPLEJOS.md §7.
  */
 export type TipoOperacion =
   | 'COMPRA'
@@ -74,6 +81,7 @@ export type TipoOperacion =
   | 'PERDIDA'
   | 'DONACION'
   | 'AJUSTE'
+  | 'LIQUIDACION_DERIVADO'
 
 /**
  * Valor de un flag del catálogo. `true`/`false` cuando es determinista; `'segun'`
@@ -230,9 +238,24 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
     exigeRectificaA: true,
     calificacionFiscal: '— (exige referencia y causa)',
   },
+  LIQUIDACION_DERIVADO: {
+    tipo: 'LIQUIDACION_DERIVADO',
+    etiqueta: 'LIQUIDACIÓN DE DERIVADO',
+    // No cuadra con el saldo por sí mismo: el margen se mueve con TRANSFERENCIA aparte.
+    cuadra: false,
+    alteracion: true,
+    // Abre lote por el activo acreditado, si lo hay. NUNCA consume: en una liquidación por
+    // diferencias no se entrega el subyacente. Si la posición se salda debitando un activo,
+    // esa entrega es una pata PAGO independiente (el «doble efecto» del manual U4.3).
+    abreLote: true,
+    consumeLote: false,
+    requiereDecisionManual: false,
+    exigeRectificaA: false,
+    calificacionFiscal: 'GyP patrimonial, base del ahorro (arts. 33.1 y 34; NO art. 37.1.m)',
+  },
 }
 
-/** Lista ordenada de los 11 tipos (para selectores y validaciones). */
+/** Lista ordenada de los 12 tipos (para selectores y validaciones). */
 export const TIPOS_OPERACION = Object.keys(CATALOGO_TIPOS) as TipoOperacion[]
 
 /** Etiqueta con acentos para presentar un tipo en la UI. */
@@ -406,6 +429,17 @@ export interface Apunte {
    * OBLIGATORIO cuando el evento es de zona gris (`EVENTOS_ZONA_GRIS`).
    */
   criterioAplicado?: string
+
+  /**
+   * Contravalor que resultaría de aplicar la TESIS ALTERNATIVA a la aplicada.
+   *
+   * No interviene en ningún cálculo: `contravalorEUR` es el que manda. Existe para que el
+   * alumno pueda ver cuánto le mueve la zona gris sin rehacer el Libro (recálculo
+   * comparativo, D5) y para conservar documentada la base con la que defender el otro
+   * criterio. El caso de manual es la salida de un pool: el art. 37.1.h pediría el mayor
+   * de los dos valores, y aquí se declara el precio efectivamente obtenido (DEFI §C6).
+   */
+  contravalorAlternativoEUR?: EuroDecimal
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -414,7 +448,7 @@ export interface Apunte {
 
 /**
  * Catálogo de eventos DeFi. NO es una ampliación del catálogo cerrado de tipos: cada
- * evento se descompone en patas, y cada pata es un apunte de uno de los 11 tipos.
+ * evento se descompone en patas, y cada pata es un apunte de uno de los 12 tipos.
  * Este enum solo nombra el hecho económico del que la pata procede.
  */
 export type EventoDeFi =

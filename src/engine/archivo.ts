@@ -71,6 +71,8 @@ export const ETIQUETA_CARPETA: Readonly<Record<RutaConvencional, string>> = Obje
  * a `07-perdidas-y-donaciones`; AJUSTE/RECTIFICACIÓN a `99-otros`.
  */
 export const RUTA_POR_TIPO: Readonly<Record<TipoOperacion, RutaConvencional>> = {
+  // D6: la liquidación de un derivado documenta una GyP, como las transmisiones.
+  LIQUIDACION_DERIVADO: '03-transmisiones',
   COMPRA: '01-adquisiciones',
   VENTA: '03-transmisiones',
   PERMUTA: '03-transmisiones',
@@ -126,6 +128,32 @@ export interface ChecklistTipo {
  * txid).
  */
 export const CHECKLIST_PROBATORIA: Readonly<Record<TipoOperacion, ChecklistTipo>> = {
+  LIQUIDACION_DERIVADO: {
+    tipo: 'LIQUIDACION_DERIVADO',
+    tesis: '¿Qué posición se cerró, con qué resultado neto y quién lo liquidó?',
+    exigencia: 3,
+    requisitos: [
+      {
+        clave: 'extracto-posicion',
+        documento: 'Extracto de la posición en la plataforma',
+        detalle:
+          'Apertura, cierre y resultado neto liquidado. Es el documento que fija la cifra: ' +
+          'en las liquidaciones por diferencias no hay entrega del subyacente que probar.',
+      },
+      {
+        clave: 'movimientos-margen',
+        documento: 'Movimientos de margen',
+        detalle:
+          'Aportación y devolución del colateral, para separar lo que es traslado de lo que ' +
+          'es resultado.',
+      },
+      {
+        clave: 'cotizacion',
+        documento: 'Fuente de la cotización EUR aplicada',
+        detalle: 'Con fecha y hora, si la liquidación se produjo en un activo distinto del euro.',
+      },
+    ],
+  },
   COMPRA: {
     tipo: 'COMPRA',
     tesis: '¿De dónde salió el euro y a qué precio compré?',

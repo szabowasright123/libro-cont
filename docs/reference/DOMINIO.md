@@ -15,7 +15,7 @@ Extraído 1:1 de la PLANTILLA_TALLER.xlsx (verificada: 2.486 fórmulas, sin macr
 |---|---|---|
 | `id` | string `AAAA-NNN` (p. ej. `2026-001`) | Correlativo; el orden cronológico es obligatorio para FIFO |
 | `fechaHora` | ISO local (convención: hora local española; UTC se convierte al cargar y se anota) | |
-| `tipo` | uno de los **11 tipos del catálogo cerrado** (§3.3) | Validación dura |
+| `tipo` | uno de los **12 tipos del catálogo cerrado** (§3.3) | Validación dura |
 | `ubicacionOrigen` / `ubicacionDestino` | ref. a UBICACIONES o `EXTERIOR` | |
 | `activoSalida` + `cantidadSalida` | opcional según tipo | |
 | `activoEntrada` + `cantidadEntrada` | opcional según tipo | |
@@ -30,6 +30,8 @@ Extraído 1:1 de la PLANTILLA_TALLER.xlsx (verificada: 2.486 fórmulas, sin macr
 
 ### 3.3 Catálogo cerrado de tipos (PARÁMETROS, Tabla 7 del manual)
 
+Doce tipos desde la fase D6 (16-8-2026). Los once primeros son la Tabla 7 literal; el duodécimo lo añadió el autor al comprobar que los derivados liquidados por diferencias no encajaban en ninguno (ver `docs/DEFI_EVENTOS_COMPLEJOS.md` §7). El manual se actualiza aparte.
+
 | Tipo | ¿Cuadra? | ¿Alteración? | ¿Abre lote? | ¿Consume lote? | Calificación fiscal |
 |---|---|---|---|---|---|
 | COMPRA | Sí | No | **Sí** | No | Sin hecho imponible; fija lote FIFO |
@@ -43,8 +45,13 @@ Extraído 1:1 de la PLANTILLA_TALLER.xlsx (verificada: 2.486 fórmulas, sin macr
 | PÉRDIDA | No | Sí | No | **Sí** | Pérdida condicionada a requisitos y prueba (dualidad DGT) |
 | DONACIÓN | Según sentido | Sí | Según | Según | Entregada: alteración en donante; recibida: ISD |
 | AJUSTE/RECTIFICACIÓN | Según | Según | Según | Según | — (exige referencia y causa) |
+| **LIQUIDACIÓN DE DERIVADO** | No | Sí | **Sí** | No | GyP patrimonial, base del ahorro (arts. 33.1 y 34; **no** art. 37.1.m, que alcanza solo a los mercados del RD 1814/1991) |
 
-DONACIÓN y AJUSTE requieren decisión manual (la app pregunta); el resto se automatiza.
+DONACIÓN y AJUSTE requieren decisión manual (la app pregunta); el resto se automatiza. LIQUIDACIÓN DE DERIVADO nunca tiene lado de salida: en una liquidación por diferencias no se entrega el subyacente, y si la posición se salda entregando un activo, esa entrega es una pata PAGO independiente.
+
+**Dimensión DeFi (fase D1).** Cuatro campos opcionales del apunte —`evento`, `posicionId`, `protocolo`, `criterioAplicado`— y uno más para la zona gris, `contravalorAlternativoEUR`, nombran el hecho económico del que la pata procede sin alterar su tipo ni su calificación. Son ortogonales al catálogo: el motor sigue clasificando por `tipo`. Ver `docs/DEFI_EVENTOS_COMPLEJOS.md` §1.
+
+**Comisiones en cripto (fase D0).** Una comisión pagada en un activo distinto de EUR reduce su cola —prorrateada entre los lotes vivos, no por orden FIFO— sin generar transmisión, y el coste retirado se traslada a la operación servida. Se aparta deliberadamente de la plantilla; ver `docs/COTEJO_F1.md`.
 
 Además: **catálogo de activos** (editable; BTC y EUR de serie; regla de identidad: BTC ≠ WBTC ≠ saldo Lightning — activos o ubicaciones distintos) y **tolerancias del cuadre** (verde ≤ 1e-8, ámbar ≤ 0,001; configurables).
 

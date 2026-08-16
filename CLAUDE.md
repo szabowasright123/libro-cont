@@ -10,7 +10,7 @@ App web local-first del Taller de Contabilidad, Trazabilidad y Fiscalidad en Bit
 4. **El motor (`src/engine/`) es TypeScript puro**: sin React, sin Dexie, sin browser APIs. Funciones deterministas estado→resultado. Toda lógica de cálculo vive ahí, jamás en componentes.
 5. **Textos fiscales**: se copian literales de los manuales del taller (no inventar ni parafrasear calificaciones fiscales). Todo output fiscal lleva disclaimer de carácter orientativo y fecha de criterio.
 6. **Idioma**: UI y código-comentarios en español (es-ES). Coma decimal en pantalla, punto interno. Fechas dd/mm/aaaa, hora local española.
-7. **Catálogo cerrado de 11 tipos** de operación (ver DOMINIO.md §3.3): COMPRA, VENTA, PERMUTA, TRANSFERENCIA, RENDIMIENTO, MINERÍA, AIRDROP, PAGO, PÉRDIDA, DONACIÓN, AJUSTE/RECTIFICACIÓN. No añadir tipos.
+7. **Catálogo cerrado de 12 tipos** de operación (ver DOMINIO.md §3.3): COMPRA, VENTA, PERMUTA, TRANSFERENCIA, RENDIMIENTO, MINERÍA, AIRDROP, PAGO, PÉRDIDA, DONACIÓN, AJUSTE/RECTIFICACIÓN y LIQUIDACIÓN DE DERIVADO. No añadir tipos. El duodécimo se incorporó en la fase D6 por decisión del autor (16-8-2026): los derivados liquidados por diferencias no encajaban en ninguno de los once anteriores. Los eventos DeFi NO son tipos: se descomponen en patas de estos doce (ver `docs/DEFI_EVENTOS_COMPLEJOS.md` y `src/engine/defi/plantillas.ts`).
 8. **FIFO en cola ÚNICA global por activo** (sin distinguir ubicación). Comisión de adquisición en EUR SUMA al coste del lote; comisión de venta en EUR MINORA el valor de transmisión.
 9. **Golden tests intocables**: `tests/golden/` (mini-caso 2024) debe pasar siempre. Saldos finales esperados: BTC 0,4068 · ETH 1,049 · USDC 305 · EUR 4.254 · ADA 0 · TOKENX 0.
 

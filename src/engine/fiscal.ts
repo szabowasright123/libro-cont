@@ -23,6 +23,9 @@
  *                 contravalor del día.
  *   c) ACTIVIDAD ECONÓMICA — MINERÍA (total informativo).
  *   d) BASE GENERAL — ganancias no derivadas de transmisión: AIRDROP.
+ *   f) DERIVADOS — resultado neto de posiciones liquidadas por diferencias (D6): va también
+ *      a la base del ahorro, pero se presenta aparte porque no nace de una transmisión con
+ *      FIFO sino del neto que liquida la plataforma.
  *   e) PÉRDIDAS — PÉRDIDA (robo/estafa/…) con su estado probatorio del Archivo y aviso de
  *                 deducibilidad condicionada. Se listan APARTE del ahorro: su cómputo está
  *                 condicionado a requisitos y prueba (dualidad DGT) — no se netea sin más.
@@ -66,6 +69,7 @@ export const UMBRAL_721_EUR = 50000
 /** Los cinco cajones fiscales del resumen. */
 export type ConceptoFiscal =
   | 'ahorro'
+  | 'derivados'
   | 'rcm'
   | 'actividad-economica'
   | 'base-general'
@@ -104,6 +108,16 @@ export const CONCEPTOS_FISCALES: Readonly<Record<ConceptoFiscal, DefinicionConce
       '«Alteraciones CON transmisión. La variación de valor aflora porque un elemento patrimonial sale del patrimonio […]. Se cuantifican por diferencia entre el valor de transmisión y el valor de adquisición (arts. 34 a 37 LIRPF) y se integran en la base imponible del ahorro (art. 46.b).» En las ventas parciales, la DGT «sostiene que las criptomonedas de un mismo tipo son bienes homogéneos y que […] se entienden transmitidas las adquiridas en primer lugar (el método FIFO; consultas V0975-22 y V2520-22)». La STSJ PV 37/2025, de 9-1-2025 (ROJ: STSJ PV 41/2025), rechazó ese planteamiento en territorio foral; «la sentencia no constituye jurisprudencia consolidada». — [MF] Unidad 3, «Alteraciones patrimoniales» y Unidad 1 (FIFO y controversia foral).',
     fechaCriterio:
       'FIFO: DGT V0975-22 y V2520-22 (2022), vigente; V0525-25 (28-3-2025) y V0491-26 sobre cola única. Controversia foral: STSJ PV 37/2025, de 9-1-2025, no firme. Verificado a 6-8-2026.',
+  },
+  derivados: {
+    clave: 'derivados',
+    etiqueta: 'Liquidación de derivados por diferencias',
+    baseImponible: 'Base imponible del ahorro',
+    tipos: ['LIQUIDACION_DERIVADO'],
+    explicacion:
+      '«Las ganancias o pérdidas de las operaciones apalancadas […] sí son alteraciones patrimoniales computables en la base del ahorro. En muchas plataformas, estas posiciones (futuros, CFD, perpetuos) no se calculan operación a operación por diferencia de valores de adquisición y transmisión, sino que se liquidan por el resultado neto que la propia plataforma arroja al cerrar la posición, y ese resultado es el que se integra.» Los intereses de la financiación «no son deducibles»: «no existe en el IRPF del inversor particular un cauce para restar el coste financiero de la inversión especulativa». Precisión de ámbito: el art. 37.1.m LIRPF —regla específica de futuros y opciones— alcanza solo a los mercados «regulados por el Real Decreto 1814/1991», de modo que un perpetuo en un exchange de criptoactivos queda fuera y se le aplica la regla general de los arts. 33.1 y 34. — [MF] Unidad 4, «Comisiones y apalancamiento».',
+    fechaCriterio:
+      'Sin consulta de la DGT específica sobre derivados con subyacente cripto. Se aplica por analogía la línea de los contratos por diferencias: V0076-09, V0917-14, V0597-18, V2770-19, V0503-21, V2115-21 y V0885-21. Ámbito del art. 37.1.m: RD 1814/1991. Verificado a 16-8-2026.',
   },
   rcm: {
     clave: 'rcm',
@@ -293,6 +307,12 @@ export interface AvisoSaldoExtranjero {
 export interface ResumenFiscal {
   ejercicio: number
   ahorro: BloqueAhorro
+  /**
+   * Resultado neto de las posiciones en derivados liquidadas por diferencias (D6). Va a la
+   * base del ahorro igual que el bloque `ahorro`, pero se presenta aparte porque no procede
+   * de una transmisión con FIFO: la cifra la fija la liquidación de la plataforma.
+   */
+  derivados: BloqueIngresos
   rcm: BloqueIngresos
   actividadEconomica: BloqueIngresos
   baseGeneral: BloqueIngresos
@@ -555,6 +575,7 @@ export function calcularResumenFiscal(
   return {
     ejercicio,
     ahorro: calcularAhorro(transmisiones, tipoPorApunte, ejercicio),
+    derivados: calcularIngresos(apuntes, ejercicio, CONCEPTOS_FISCALES.derivados.tipos),
     rcm: calcularIngresos(apuntes, ejercicio, CONCEPTOS_FISCALES.rcm.tipos),
     actividadEconomica: calcularIngresos(
       apuntes,

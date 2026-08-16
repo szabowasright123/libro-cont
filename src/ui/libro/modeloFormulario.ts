@@ -67,6 +67,11 @@ export function camposDeTipo(
   sentido: SentidoDonacion = 'entregada',
 ): CamposApunte {
   switch (tipo) {
+    case 'LIQUIDACION_DERIVADO':
+      // D6: entra lo acreditado (si lo hay) y nunca sale el subyacente. El contravalor es
+      // el RESULTADO NETO de la posición, y puede ser negativo.
+      return { ...BASE, entrada: 'opcional', salida: 'oculto', comision: 'opcional', contravalor: 'obligatorio' }
+
     case 'COMPRA':
       // Sale la contraprestación (EUR/otro), entra el activo adquirido; coste = contravalor.
       return { ...BASE, entrada: 'obligatorio', salida: 'obligatorio', comision: 'opcional', contravalor: 'obligatorio' }

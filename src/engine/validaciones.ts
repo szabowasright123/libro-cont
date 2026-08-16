@@ -57,7 +57,7 @@ export function validarApunte(ap: Apunte): Aviso[] {
 
   // 0. Tipo del catálogo cerrado.
   if (!def) {
-    push('error', 'TIPO_DESCONOCIDO', `Tipo «${ap.tipo}» fuera del catálogo cerrado de 11 tipos.`)
+    push('error', 'TIPO_DESCONOCIDO', `Tipo «${ap.tipo}» fuera del catálogo cerrado de 12 tipos.`)
     return avisos
   }
 
@@ -110,6 +110,21 @@ export function validarApunte(ap: Apunte): Aviso[] {
       }
       break
     }
+
+    case 'LIQUIDACION_DERIVADO':
+      // Liquidación por diferencias: NUNCA se entrega el subyacente, luego no hay lado de
+      // salida. Si la posición se salda debitando un activo, esa entrega va en una pata
+      // PAGO aparte (el «doble efecto» del manual U4.3). El contravalor es el RESULTADO
+      // NETO de la posición y puede ser negativo, así que no se exige positivo.
+      if (tieneSalida(ap)) {
+        push(
+          'error',
+          'DERIVADO_CON_SALIDA',
+          'LIQUIDACIÓN DE DERIVADO no tiene lado de salida: en una liquidación por ' +
+            'diferencias no se entrega el subyacente. Registra la entrega como PAGO aparte.',
+        )
+      }
+      break
 
     case 'DONACION':
       // Requiere decisión manual: solo avisamos.

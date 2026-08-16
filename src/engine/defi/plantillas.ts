@@ -4,7 +4,7 @@
  * Fuente de verdad: docs/DEFI_EVENTOS_COMPLEJOS.md (validado por el autor 16-08-2026).
  *
  * PRINCIPIO RECTOR (DEFI §0): un evento DeFi NO es un tipo nuevo. Se descompone en una
- * o varias PATAS, y cada pata es un apunte de uno de los 11 tipos que ya existen. Lo que
+ * o varias PATAS, y cada pata es un apunte de uno de los 12 tipos que ya existen. Lo que
  * este módulo materializa es esa traducción, y solo esa.
  *
  * La consecuencia de diseño es la que justifica el módulo: el día que la DGT cambie de
@@ -14,7 +14,8 @@
  * Determinista y TypeScript puro (Regla de oro 4): sin React, sin Dexie, sin browser APIs.
  * Las patas salen SIN `id`: el correlativo lo asigna el repositorio al escribir.
  *
- * Cobertura actual: familias A (cesión de capitales) y B (préstamo) — fase D2.
+ * Cobertura: familias A (cesión de capitales), B (préstamo), C (pools), D (derivados),
+ * E (cambio de forma), F (incorporaciones) y G (bloqueo de gobernanza) — fases D2, D3, D5 y D6.
  */
 
 import {
@@ -27,6 +28,7 @@ import {
   type SimboloActivo,
   UBICACION_EXTERIOR,
 } from '../types'
+import { D, aCadena as aCadenaD, Decimal } from '../decimal'
 
 /** Una pata generada: un apunte sin correlativo (lo asigna el repositorio al guardar). */
 export type Pata = Omit<Apunte, 'id'>
@@ -44,6 +46,37 @@ export const CRITERIO_POR_DEFECTO: Partial<Record<EventoDeFi, string>> = {
   LENDING_PRESTATARIO:
     'Recepción del principal neutra pero con valor de adquisición (equivalente en euros al ' +
     'recibirlo). Criterio del autor 16-08-2026; art. 1753 CC. Tesis fundada, no confirmada.',
+  POOL_APORTACION:
+    'Tesis BENÉVOLA: el LP token es un simple resguardo y la aportación no es hecho ' +
+    'imponible (criterio del autor 16-08-2026). La tesis prudente la trataría como permuta ' +
+    'del art. 37.1.h. Sin criterio de la DGT. Manual U4.5.',
+  POOL_RETIRADA:
+    'Tesis BENÉVOLA: solo se transmite el NETO entre lo aportado y lo recuperado, valorado ' +
+    'por el precio efectivamente obtenido y no por el mayor de los dos valores del art. ' +
+    '37.1.h — en un AMM el valor de transmisión real es el de la secuencia de ' +
+    'micro-operaciones. Criterio del autor 16-08-2026. Manual U4.5.',
+  WRAPPING:
+    'Tesis prudente: el envoltorio es un activo distinto del subyacente y el canje es ' +
+    'permuta del art. 37.1.h. Sin criterio de la DGT.',
+  BRIDGE:
+    'Tesis prudente: si lo recibido es un token envuelto distinto, el canje es permuta del ' +
+    'art. 37.1.h; si es el mismo activo en otra red, es traslado. Sin criterio de la DGT.',
+  ROUTER_MULTIHOP:
+    'Se registra UNA sola permuta (la querida por el contribuyente) y no los saltos ' +
+    'intermedios del agregador: art. 13 LGT, calificación conforme a la verdadera ' +
+    'naturaleza. Los saltos quedan en el Archivo. Sin criterio de la DGT.',
+  HARD_FORK:
+    'Zona gris sin criterio publicado (manual U3.4.4): decisión manual entre asimilar al ' +
+    'airdrop (ganancia a valor de mercado, base general) o coste cero con diferimiento.',
+  AIRDROP_CONDICIONADO:
+    'Si el token se recibe a cambio de una contraprestación real, la calificación se aleja ' +
+    'de la incorporación gratuita del art. 37.1.l. Sin criterio publicado: decisión manual.',
+  LOCKING:
+    'El veToken es intransferible y sin valor de mercado determinable: el bloqueo se trata ' +
+    'como traslado sin alteración y los retornos como RCM. Sin criterio de la DGT.',
+  VAULT:
+    'Vault de valor creciente: no hay acreditación periódica imputable, la renta aflora ' +
+    'entera en la permuta de salida. Sin criterio de la DGT. Manual U4.5.',
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -237,6 +270,118 @@ export interface SolicitudSalidaPrestamo extends Comun, ConComision {
   contravalorEUR: EuroDecimal
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Familia C · Provisión de liquidez (tesis BENÉVOLA — criterio del autor 16-08-2026)
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Un activo con su cantidad y su contravalor en euros. */
+export interface Tramo {
+  activo: SimboloActivo
+  cantidad: CantidadDecimal
+  contravalorEUR: EuroDecimal
+}
+
+/**
+ * C1 · APORTACIÓN a un pool.
+ *
+ * Bajo la tesis benévola NO es hecho imponible: el LP token es un resguardo, los activos no
+ * salen del patrimonio y no se consume ni se abre lote. Cada activo aportado genera una
+ * TRANSFERENCIA a la ubicación que representa el pool, y nada más.
+ *
+ * Obsérvese lo que esta tesis ahorra: con la prudente habría que partir la aportación en
+ * tantas permutas como activos y repartir el LP token en proporción al contravalor de cada
+ * uno. Aquí no hace falta, y la cola FIFO no se ensucia con lotes de un token que nadie
+ * negocia.
+ */
+export interface SolicitudPoolAportacion extends Comun, ConComision {
+  clase: 'pool-aportacion'
+  ubicacionOrigen: RefUbicacion
+  /** Ubicación que representa el pool (destino de los activos aportados). */
+  ubicacionPool: RefUbicacion
+  aportado: Tramo[]
+}
+
+/**
+ * C3 · RETIRADA de un pool. Aquí aflora todo.
+ *
+ * El cálculo se hace por DIFERENCIA entre lo aportado y lo recuperado, activo a activo:
+ * los activos cuyo neto es cero no generan apunte alguno —nunca dejaron de ser del
+ * titular—, los de neto negativo son la entrega y los de neto positivo la contraprestación.
+ *
+ * Valoración: el PRECIO EFECTIVAMENTE OBTENIDO, es decir, el contravalor de lo recibido, y
+ * no el mayor de los dos valores del art. 37.1.h. El importe que arrojaría esa regla se
+ * conserva en `contravalorAlternativoEUR` para poder defender o recalcular el otro criterio.
+ */
+export interface SolicitudPoolRetirada extends Comun, ConComision {
+  clase: 'pool-retirada'
+  ubicacionPool: RefUbicacion
+  ubicacionDestino: RefUbicacion
+  aportado: Tramo[]
+  recuperado: Tramo[]
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Familia D · Derivados liquidados por diferencias (12.º tipo — fase D6)
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * D1 · CIERRE de una posición en un derivado liquidado por diferencias.
+ *
+ * Ganancia o pérdida patrimonial de la base del ahorro (arts. 33.1 y 34). El art. 37.1.m
+ * NO aplica: alcanza solo a los mercados regulados por el RD 1814/1991, y un perpetuo en un
+ * exchange de criptoactivos queda fuera.
+ *
+ * Con resultado POSITIVO se genera una sola pata LIQUIDACION_DERIVADO, que abre lote por lo
+ * acreditado. Con resultado NEGATIVO se generan DOS, que es el «doble efecto» que el manual
+ * describe en U4.3: la pérdida de la propia posición, y la transmisión del activo que se ha
+ * entregado para saldarla, con su ganancia o pérdida propia calculada por FIFO.
+ */
+export interface SolicitudDerivado extends Comun, ConComision {
+  clase: 'derivado'
+  ubicacion: RefUbicacion
+  /** Resultado neto que liquida la plataforma, con signo. */
+  resultadoNetoEUR: EuroDecimal
+  /** Activo acreditado (resultado positivo) o debitado (negativo), si lo hay. */
+  activo?: SimboloActivo
+  cantidad?: CantidadDecimal
+  /** Valor de mercado del activo movido; por defecto, el valor absoluto del resultado. */
+  contravalorActivoEUR?: EuroDecimal
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Familias E, F y G (fase D5)
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * E3 · HARD FORK. Zona gris sin criterio publicado (manual U3.4.4): exige DECISIÓN MANUAL
+ * entre las dos posiciones doctrinales, igual que DONACIÓN y AJUSTE.
+ *  - `airdrop`: ganancia patrimonial sin transmisión, a valor de mercado, base general.
+ *  - `coste-cero`: se adquiere a coste cero y toda la tributación se difiere a la venta.
+ */
+export interface SolicitudHardFork extends Comun {
+  clase: 'hard-fork'
+  postura: 'airdrop' | 'coste-cero'
+  ubicacionDestino: RefUbicacion
+  activo: SimboloActivo
+  cantidad: CantidadDecimal
+  /** Valor de mercado en la recepción. Se ignora en la postura de coste cero.  */
+  contravalorEUR: EuroDecimal
+}
+
+/**
+ * F1 · AIRDROP CONDICIONADO. Si hay contraprestación real —usar el protocolo, promocionarlo,
+ * aportar liquidez—, la calificación se aleja de la incorporación gratuita del art. 37.1.l
+ * y puede aproximarse al RCM. Sin criterio publicado: la app pregunta y deja constancia.
+ */
+export interface SolicitudAirdropCondicionado extends Comun {
+  clase: 'airdrop-condicionado'
+  hayContraprestacion: boolean
+  ubicacionDestino: RefUbicacion
+  activo: SimboloActivo
+  cantidad: CantidadDecimal
+  contravalorEUR: EuroDecimal
+}
+
 /** Unión de todas las solicitudes que este módulo sabe descomponer. */
 export type SolicitudEvento =
   | SolicitudRecompensa
@@ -247,6 +392,11 @@ export type SolicitudEvento =
   | SolicitudEjecucionGarantia
   | SolicitudPrincipalRecibido
   | SolicitudSalidaPrestamo
+  | SolicitudPoolAportacion
+  | SolicitudPoolRetirada
+  | SolicitudDerivado
+  | SolicitudHardFork
+  | SolicitudAirdropCondicionado
 
 // ────────────────────────────────────────────────────────────────────────────
 // Descomposición
@@ -404,6 +554,64 @@ export function descomponer(s: SolicitudEvento): Pata[] {
         },
       ]
 
+    // ── C1 · Aportación a pool: bajo la tesis benévola, solo traslados ───────
+    case 'pool-aportacion':
+      return s.aportado.map((t, i) => ({
+        ...base(s, 'POOL_APORTACION'),
+        // La comisión se cuelga de la primera pata para no contarla tantas veces
+        // como activos aportados.
+        ...(i === 0 ? comision(s) : {}),
+        tipo: 'TRANSFERENCIA',
+        ubicacionOrigen: s.ubicacionOrigen,
+        ubicacionDestino: s.ubicacionPool,
+        activoSalida: t.activo,
+        cantidadSalida: t.cantidad,
+        activoEntrada: t.activo,
+        cantidadEntrada: t.cantidad,
+      }))
+
+    // ── C3 · Retirada de pool: permuta del NETO + vuelta de los saldos ───────
+    case 'pool-retirada':
+      return retirarDePool(s)
+
+    // ── D1 · Cierre de una posición en derivados ─────────────────────────────
+    case 'derivado':
+      return cerrarDerivado(s)
+
+    // ── E3 · Hard fork: decisión manual entre las dos posturas ───────────────
+    case 'hard-fork':
+      return [
+        {
+          ...base(s, 'HARD_FORK'),
+          // Asimilación al airdrop: ganancia a valor de mercado, base general.
+          // Coste cero: COMPRA a contravalor 0, con toda la tributación diferida a la venta.
+          tipo: s.postura === 'airdrop' ? 'AIRDROP' : 'COMPRA',
+          ubicacionOrigen: UBICACION_EXTERIOR,
+          ubicacionDestino: s.ubicacionDestino,
+          activoEntrada: s.activo,
+          cantidadEntrada: s.cantidad,
+          contravalorEUR: s.postura === 'airdrop' ? s.contravalorEUR : '0',
+          // Se conserva el otro importe para poder ver cuánto mueve la postura contraria.
+          contravalorAlternativoEUR: s.postura === 'airdrop' ? '0' : s.contravalorEUR,
+        },
+      ]
+
+    // ── F1 · Airdrop condicionado ────────────────────────────────────────────
+    case 'airdrop-condicionado':
+      return [
+        {
+          ...base(s, 'AIRDROP_CONDICIONADO'),
+          // Con contraprestación real la incorporación deja de ser gratuita y se aproxima
+          // al RCM; sin ella, sigue el régimen del art. 37.1.l.
+          tipo: s.hayContraprestacion ? 'RENDIMIENTO' : 'AIRDROP',
+          ubicacionOrigen: UBICACION_EXTERIOR,
+          ubicacionDestino: s.ubicacionDestino,
+          activoEntrada: s.activo,
+          cantidadEntrada: s.cantidad,
+          contravalorEUR: s.contravalorEUR,
+        },
+      ]
+
     // ── B2 · Salidas del prestatario: interés, devolución, liquidación ───────
     case 'salida-prestamo':
       return [
@@ -420,6 +628,134 @@ export function descomponer(s: SolicitudEvento): Pata[] {
         },
       ]
   }
+}
+
+/**
+ * Retirada de un pool bajo la tesis benévola: el hecho imponible es la DIFERENCIA entre lo
+ * aportado y lo recuperado, no el canje contra el LP token.
+ *
+ * Los activos cuyo neto es cero no generan permuta: nunca dejaron de ser del titular. Lo que
+ * sí generan todos —incluidos esos— es la TRANSFERENCIA de vuelta desde la ubicación del
+ * pool, para que el CUADRE cierre.
+ */
+function retirarDePool(s: SolicitudPoolRetirada): Pata[] {
+  const netos = new Map<SimboloActivo, Decimal>()
+  const valorPorActivo = new Map<SimboloActivo, Decimal>()
+  for (const t of s.aportado) {
+    netos.set(t.activo, (netos.get(t.activo) ?? D(0)).minus(D(t.cantidad)))
+  }
+  for (const t of s.recuperado) {
+    netos.set(t.activo, (netos.get(t.activo) ?? D(0)).plus(D(t.cantidad)))
+    valorPorActivo.set(t.activo, D(t.contravalorEUR))
+  }
+  for (const t of s.aportado) {
+    if (!valorPorActivo.has(t.activo)) valorPorActivo.set(t.activo, D(t.contravalorEUR))
+  }
+
+  const salidas = [...netos].filter(([, n]) => n.lessThan(0)).map(([a, n]) => ({ activo: a, cantidad: n.negated() }))
+  const entradas = [...netos].filter(([, n]) => n.greaterThan(0)).map(([a, n]) => ({ activo: a, cantidad: n }))
+
+  const patas: Pata[] = []
+
+  // Valor unitario en euros de cada activo en el momento de la retirada, tomado de los
+  // tramos recuperados/aportados: es lo que permite valorar el neto.
+  const unitario = (activo: SimboloActivo): Decimal => {
+    const tr =
+      s.recuperado.find((t) => t.activo === activo) ?? s.aportado.find((t) => t.activo === activo)
+    if (!tr || D(tr.cantidad).lessThanOrEqualTo(0)) return D(0)
+    return D(tr.contravalorEUR).div(D(tr.cantidad))
+  }
+
+  const valorEntradas = entradas.reduce<Decimal>((acc, e) => acc.plus(unitario(e.activo).times(e.cantidad)), D(0))
+  const valorSalidas = salidas.reduce<Decimal>((acc, x) => acc.plus(unitario(x.activo).times(x.cantidad)), D(0))
+
+  // Permuta(s) del neto. Con varias salidas, el valor recibido se reparte entre ellas en
+  // proporción a su contravalor (DEFI §C3), que es la única situación en la que sobrevive
+  // la fórmula de reparto proporcional.
+  for (const x of salidas) {
+    const valorX = unitario(x.activo).times(x.cantidad)
+    const proporcion = valorSalidas.greaterThan(0) ? valorX.div(valorSalidas) : D(0)
+    const entrada = entradas[0]
+    patas.push({
+      ...base(s, 'POOL_RETIRADA'),
+      tipo: 'PERMUTA',
+      ubicacionOrigen: s.ubicacionPool,
+      ubicacionDestino: s.ubicacionDestino,
+      activoSalida: x.activo,
+      cantidadSalida: aCadenaD(x.cantidad),
+      ...(entrada
+        ? {
+            activoEntrada: entrada.activo,
+            cantidadEntrada: aCadenaD(entrada.cantidad.times(proporcion)),
+          }
+        : {}),
+      // PRECIO EFECTIVAMENTE OBTENIDO: el valor de lo recibido, no el de lo entregado.
+      contravalorEUR: aCadenaD(valorEntradas.times(proporcion)),
+      // Lo que exigiría el art. 37.1.h: el MAYOR de los dos valores. Se conserva para
+      // poder defender o recalcular el criterio contrario (DEFI §C6).
+      contravalorAlternativoEUR: aCadenaD(Decimal.max(valorX, valorEntradas.times(proporcion))),
+    })
+  }
+
+  // Vuelta de los saldos: una transferencia por activo recuperado, para que el CUADRE cierre.
+  for (const t of s.recuperado) {
+    patas.push({
+      ...base(s, 'POOL_RETIRADA'),
+      tipo: 'TRANSFERENCIA',
+      ubicacionOrigen: s.ubicacionPool,
+      ubicacionDestino: s.ubicacionDestino,
+      activoSalida: t.activo,
+      cantidadSalida: t.cantidad,
+      activoEntrada: t.activo,
+      cantidadEntrada: t.cantidad,
+    })
+  }
+
+  return patas
+}
+
+/**
+ * Cierre de una posición en derivados. Con pérdida se emiten DOS patas: la de la posición y
+ * la del activo entregado para saldarla. Es el «doble efecto» del manual (U4.3): una
+ * liquidación forzosa concentra dos hechos fiscales a la vez.
+ */
+function cerrarDerivado(s: SolicitudDerivado): Pata[] {
+  const neto = D(s.resultadoNetoEUR)
+  const valorActivo = s.contravalorActivoEUR ?? aCadenaD(neto.abs())
+
+  const liquidacion: Pata = {
+    ...base(s, 'DERIVADO'),
+    tipo: 'LIQUIDACION_DERIVADO',
+    ubicacionOrigen: UBICACION_EXTERIOR,
+    ubicacionDestino: s.ubicacion,
+    contravalorEUR: s.resultadoNetoEUR,
+    ...(neto.greaterThan(0) && s.activo && s.cantidad
+      ? { activoEntrada: s.activo, cantidadEntrada: s.cantidad }
+      : {}),
+    notas:
+      s.notas ??
+      'Resultado neto liquidado por la plataforma. GyP de la base del ahorro (arts. 33.1 y ' +
+        '34 LIRPF). El art. 37.1.m no aplica: alcanza solo a los mercados del RD 1814/1991.',
+  }
+
+  if (neto.greaterThanOrEqualTo(0) || !s.activo || !s.cantidad) return [liquidacion]
+
+  return [
+    liquidacion,
+    {
+      ...base(s, 'DERIVADO'),
+      ...comision(s),
+      tipo: 'PAGO',
+      ubicacionOrigen: s.ubicacion,
+      ubicacionDestino: UBICACION_EXTERIOR,
+      activoSalida: s.activo,
+      cantidadSalida: s.cantidad,
+      contravalorEUR: valorActivo,
+      notas:
+        'Entrega del activo con el que se salda la pérdida de la posición: transmisión con ' +
+        'su propia GyP calculada por FIFO. Es el doble efecto del manual U4.3.',
+    },
+  ]
 }
 
 const NOTA_SALIDA: Record<SolicitudSalidaPrestamo['motivo'], string> = {

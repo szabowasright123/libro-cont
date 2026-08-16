@@ -496,10 +496,10 @@ Y una advertencia que el manual hace y conviene que la app repita: el **FIFO glo
 | **D0** ✅ | Comisiones en cripto (§8) | Hecho: `tests/golden/comisiones-cripto.test.ts`; restante FIFO = saldo en los 5 activos |
 | **D1** ✅ | Campos `evento`, `posicionId`, `protocolo`, `criterioAplicado` + entidad `Posicion` + migración Dexie v8 | Hecho: 302 tests en verde, golden intactos |
 | **D2** ✅ | Familias A y B completas (staking, lending de ambos lados, ejecución de garantía) | Hecho: plantillas de descomposición + 22 tests; ciclo completo de préstamo verde |
-| **D3** | Familia C (pools): tesis benévola + valoración por precio efectivo | Test del ejemplo de §C6: la permuta neta es 5 ETH por 30.000 DAI |
-| **D4** | Detector del art. 33.5.e (§4.3) | Batería de casos límite: recompra a los 11 meses, a los 13, compra previa a la venta |
-| **D5** | Familias E, F, G + panel de zonas grises con recálculo comparativo | Recálculo prudente/benévolo de una cartera con pools |
-| **D6** | 12.º tipo LIQUIDACIÓN DE DERIVADO (§7) | `CLAUDE.md` y DOMINIO.md §3.3 actualizados a doce tipos; golden test propio |
+| **D3** ✅ | Familia C (pools): tesis benévola + valoración por precio efectivo | Hecho: la permuta neta del ejemplo §C6 es 5 ETH por 30.000 DAI, ganancia 15.000 |
+| **D4** ✅ | Detector del art. 33.5.e (§4.3) | Hecho: `src/engine/defi/recompra.ts`; recompra a 11 meses, a 13, parcial y compra previa |
+| **D5** ✅ | Familias E, F, G + panel de zonas grises con recálculo comparativo | Hecho: `comparativa.ts` mide los 30.000 € que separan las dos tesis del pool |
+| **D6** ✅ | 12.º tipo LIQUIDACIÓN DE DERIVADO (§7) | Hecho: `CLAUDE.md` y DOMINIO.md §3.3 a doce tipos; cajón fiscal propio; golden del doble efecto |
 
 ---
 
