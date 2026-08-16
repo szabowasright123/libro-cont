@@ -37,6 +37,9 @@ import { descargarTexto } from '../descargas'
 import { BTN_PRIMARIO, BTN_SEC, INPUT, Banner } from '../comp'
 import { construirInformeFiscalHtml } from '../fiscal/informeFiscalHtml'
 import { resumenFiscalACsv } from '../fiscal/fiscalCsv'
+import { avisosRecompra } from '../../engine/defi/recompra'
+import { compararTesis } from '../../engine/defi/comparativa'
+import type { Apunte } from '../../engine/types'
 import { calcularAviso721, type Aviso721DobleFecha } from '../fiscal/aviso721'
 import { SUBTIPOS_PERDIDA } from '../libro/perdidaSubtipos'
 import { UnidadManual } from '../guia/UnidadManual'
@@ -214,15 +217,25 @@ export function FiscalPage() {
           </div>
 
           {/* KPIs por cajón. */}
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <Kpi etiqueta="Neto del ahorro" valor={resumen.ahorro.netoEUR} />
+            <Kpi etiqueta="Derivados" valor={resumen.derivados.totalEUR} />
             <Kpi etiqueta="RCM" valor={resumen.rcm.totalEUR} />
             <Kpi etiqueta="Actividad económica" valor={resumen.actividadEconomica.totalEUR} />
             <Kpi etiqueta="Base general" valor={resumen.baseGeneral.totalEUR} />
             <Kpi etiqueta="Pérdidas (potencial)" valor={resumen.perdidas.totalEUR} tono="perdida" />
           </section>
 
+          <PanelRecompra apuntes={apuntes} ejercicio={ejercicioActivo} />
+          <PanelZonaGris apuntes={apuntes} />
+
           <CajonAhorro resumen={resumen} casillas={casillas} />
+          <CajonIngresos
+            titulo={CONCEPTOS_FISCALES.derivados.etiqueta}
+            concepto="derivados"
+            bloque={resumen.derivados}
+            casillas={casillas}
+          />
           <CajonIngresos titulo={CONCEPTOS_FISCALES.rcm.etiqueta} concepto="rcm" bloque={resumen.rcm} casillas={casillas} />
           <CajonIngresos
             titulo={CONCEPTOS_FISCALES['actividad-economica'].etiqueta}
@@ -718,5 +731,119 @@ function CorteAviso({
         </>
       )}
     </div>
+  )
+}
+
+
+/**
+ * PanelRecompra — norma anti-aplicación del art. 33.5.e LIRPF (fase D4).
+ *
+ * Se muestra dentro del informe fiscal y no como aviso suelto porque el efecto es fiscal:
+ * hay pérdidas declaradas que la Administración puede diferir. El alumno debe verlo junto a
+ * la cifra que está a punto de declarar, no en otra pantalla.
+ */
+function PanelRecompra({ apuntes, ejercicio }: { apuntes: Apunte[]; ejercicio: number }) {
+  const avisos = useMemo(
+    () => avisosRecompra(apuntes).filter((a) => a.detalle.ejercicio === ejercicio),
+    [apuntes, ejercicio],
+  )
+  if (avisos.length === 0) return null
+
+  return (
+    <section className="rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+      <h3 className="mb-1 font-semibold text-amber-900 dark:text-amber-200">
+        Pérdidas con recompra dentro del año siguiente (art. 33.5.e LIRPF)
+      </h3>
+      <p className="mb-3 text-sm text-amber-900/80 dark:text-amber-200/80">
+        La pérdida no desaparece: su integración queda <strong>diferida</strong> hasta que se
+        transmita definitivamente el elemento readquirido. La app avisa y no bloquea: el manual
+        advierte de que el terreno no es cien por cien seguro, y la calificación final es tuya.
+      </p>
+      <table className="w-full text-sm">
+        <thead className="text-xs uppercase tracking-wide text-amber-800/70 dark:text-amber-300/70">
+          <tr>
+            <th className="py-1 text-left">Apunte</th>
+            <th className="py-1 text-left">Activo</th>
+            <th className="py-1 text-right">Pérdida</th>
+            <th className="py-1 text-right">Diferida</th>
+            <th className="py-1 text-right">Computable ya</th>
+            <th className="py-1 text-left">Readquisición</th>
+          </tr>
+        </thead>
+        <tbody>
+          {avisos.map((a) => (
+            <tr key={a.apunteId} className="border-t border-amber-200 dark:border-amber-900/40">
+              <td className="py-1.5 font-mono text-xs">{a.apunteId}</td>
+              <td className="py-1.5">{a.detalle.activo}</td>
+              <td className="py-1.5 text-right tabular-nums">{fmtEuro(a.detalle.perdidaEUR)}</td>
+              <td className="py-1.5 text-right font-medium tabular-nums">
+                {fmtEuro(a.detalle.importeDiferidoEUR)}
+              </td>
+              <td className="py-1.5 text-right tabular-nums">
+                {fmtEuro(a.detalle.importeComputableEUR)}
+              </td>
+              <td className="py-1.5 text-xs">
+                {a.detalle.readquisiciones.map((r) => `${r.apunteId} (${r.cantidad})`).join(', ')}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )
+}
+
+/**
+ * PanelZonaGris — recálculo comparativo (fase D5).
+ *
+ * Ocho supuestos del catálogo DeFi carecen de criterio administrativo publicado. Saber que
+ * existe la zona gris no basta: el alumno necesita saber CUÁNTO le mueve. Este panel lo cifra
+ * sobre el diario completo, porque cambiar el valor de una permuta altera el coste del lote
+ * que abre y eso se propaga a las transmisiones posteriores.
+ */
+function PanelZonaGris({ apuntes }: { apuntes: Apunte[] }) {
+  const c = useMemo(() => compararTesis(apuntes), [apuntes])
+  if (c.apuntesConAlternativa === 0) return null
+
+  const signo = c.diferenciaEUR.trim().startsWith('-') ? '' : '+'
+
+  return (
+    <section className="rounded-md border border-stone-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+      <h3 className="mb-1 font-semibold">Zona gris: cuánto cambia con la tesis contraria</h3>
+      <p className="mb-3 text-sm text-slate-500">
+        {c.apuntesConAlternativa} apunte(s) descansan sobre una tesis fundada pero no confirmada.
+        Esto es lo que resultaría de aplicar la contraria — no se declara, se conserva para poder
+        defenderla y para saber a qué atenerse el día que la cuestión se resuelva.
+      </p>
+      <div className="mb-3 grid grid-cols-3 gap-3">
+        <Kpi etiqueta="Criterio aplicado" valor={c.totalAplicadoEUR} />
+        <Kpi etiqueta="Tesis alternativa" valor={c.totalAlternativoEUR} />
+        <Kpi etiqueta={`Diferencia (${signo})`} valor={c.diferenciaEUR} />
+      </div>
+      <table className="w-full text-sm">
+        <thead className="text-xs uppercase tracking-wide text-slate-400">
+          <tr>
+            <th className="py-1 text-left">Apunte</th>
+            <th className="py-1 text-left">Activo</th>
+            <th className="py-1 text-right">Resultado aplicado</th>
+            <th className="py-1 text-right">Con la alternativa</th>
+            <th className="py-1 text-right">Diferencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          {c.detalle.map((d) => (
+            <tr key={d.apunteId} className="border-t border-stone-100 dark:border-slate-800">
+              <td className="py-1.5 font-mono text-xs" title={d.criterioAplicado}>
+                {d.apunteId}
+              </td>
+              <td className="py-1.5">{d.activo}</td>
+              <td className="py-1.5 text-right tabular-nums">{fmtEuro(d.resultadoAplicadoEUR)}</td>
+              <td className="py-1.5 text-right tabular-nums">{fmtEuro(d.resultadoAlternativoEUR)}</td>
+              <td className="py-1.5 text-right font-medium tabular-nums">{fmtEuro(d.diferenciaEUR)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   )
 }

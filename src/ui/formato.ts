@@ -26,10 +26,57 @@ export function fmtDecimal(valor: string | undefined | null): string {
   return negativo ? `−${cuerpo}` : cuerpo
 }
 
-/** Importe en euros → presentación es-ES con el símbolo € (p. ej. «4.254,00 €»). */
+/**
+ * Recorta una cadena decimal a `maxDecimales` cifras, redondeando al más cercano.
+ *
+ * Existe porque desde D0 el motor produce importes PERIÓDICOS: el prorrateo del gas divide
+ * entre cantidades que no dan decimal finito, y un KPI con «29.411,6409523809523809…» no es
+ * un número, es un accidente. El dominio conserva la precisión completa; lo que se recorta
+ * es la presentación, que es donde debe recortarse.
+ *
+ * Redondeo half-up sobre la cadena, sin pasar por `number`: convertir a float aquí sería
+ * exactamente lo que la regla de oro 2 prohíbe.
+ */
+export function redondearCadena(valor: string, maxDecimales: number): string {
+  const negativo = valor.startsWith('-') || valor.startsWith('−')
+  const limpio = negativo ? valor.slice(1) : valor
+  const [enteraRaw, decimales = ''] = limpio.split('.')
+  const entera = enteraRaw ?? '0'
+  if (decimales.length <= maxDecimales) return valor
+
+  const conservados = decimales.slice(0, maxDecimales)
+  const siguiente = decimales.charCodeAt(maxDecimales) - 48
+  let cuerpo = entera + conservados
+
+  if (siguiente >= 5) {
+    // Suma 1 a la última cifra propagando el acarreo, en base 10 sobre la cadena.
+    const cifras = cuerpo.split('')
+    let i = cifras.length - 1
+    for (; i >= 0; i--) {
+      if (cifras[i] === '9') {
+        cifras[i] = '0'
+      } else {
+        cifras[i] = String(Number(cifras[i]) + 1)
+        break
+      }
+    }
+    cuerpo = (i < 0 ? '1' : '') + cifras.join('')
+  }
+
+  const corte = cuerpo.length - maxDecimales
+  const nuevaEntera = cuerpo.slice(0, corte) || '0'
+  const nuevaDecimal = cuerpo.slice(corte)
+  const salida = maxDecimales > 0 ? `${nuevaEntera}.${nuevaDecimal}` : nuevaEntera
+  return negativo ? `-${salida}` : salida
+}
+
+/**
+ * Importe en euros → presentación es-ES con el símbolo € (p. ej. «4.254,00 €»).
+ * Se muestran como mucho DOS decimales: son euros.
+ */
 export function fmtEuro(valor: string | undefined | null): string {
   if (valor === undefined || valor === null || valor === '') return '—'
-  return `${fmtDecimal(valor)} €`
+  return `${fmtDecimal(redondearCadena(valor, 2))} €`
 }
 
 /**

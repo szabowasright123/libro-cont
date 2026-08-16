@@ -30,6 +30,8 @@ import { fmtDecimal, fmtEuro, fmtFechaHora } from '../formato'
 import { BTN_PRIMARIO, BTN_SEC, BTN_PELIGRO, INPUT, KBD, Banner } from '../comp'
 import { FormularioApunte, type AperturaFormulario } from '../libro/FormularioApunte'
 import { PLANTILLAS, type PlantillaRapida } from '../libro/plantillas'
+import { ChipZonaGris } from '../defi/ChipZonaGris'
+import { AsistenteEvento } from '../defi/AsistenteEvento'
 import { BadgeEstadoProbatorio, mapaEstadosProbatorios } from '../archivo/EstadoProbatorio'
 import { SelloKyc } from '../trazabilidad/SelloKyc'
 import { UnidadManual } from '../guia/UnidadManual'
@@ -78,6 +80,9 @@ export function DiarioPage() {
   const [formAbierto, setFormAbierto] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Asistente de eventos DeFi (un hecho económico → varias patas).
+  const [asistenteDefi, setAsistenteDefi] = useState(false)
 
   // Filtros.
   const [busqueda, setBusqueda] = useState('')
@@ -176,7 +181,12 @@ export function DiarioPage() {
         id: 'tipo',
         header: 'Tipo',
         cell: (c) => (
-          <span className="whitespace-nowrap font-medium">{ETIQUETA_TIPO[c.getValue() as TipoOperacion]}</span>
+          <span className="flex items-center gap-1.5 whitespace-nowrap">
+            <span className="font-medium">{ETIQUETA_TIPO[c.getValue() as TipoOperacion]}</span>
+            {/* Distintivo de zona gris (DEFI §9): un apunte apoyado en una tesis fundada
+                pero no confirmada no debe verse igual que uno resuelto. */}
+            <ChipZonaGris apunte={c.row.original.registro} />
+          </span>
         ),
       }),
       col.accessor('origenKyc', {
@@ -412,6 +422,11 @@ export function DiarioPage() {
       {/* Plantillas rápidas: prerrellenan el formulario para operaciones frecuentes. */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-slate-500">Plantillas rápidas:</span>
+        {/* Los eventos DeFi no caben en una plantilla de apunte: un solo hecho produce
+            varias patas. Por eso van por asistente. */}
+        <button type="button" className={BTN_SEC} onClick={() => setAsistenteDefi(true)}>
+          Evento DeFi…
+        </button>
         {PLANTILLAS.map((p) => (
           <button
             key={p.clave}
@@ -581,6 +596,13 @@ export function DiarioPage() {
         registros={registros}
         apertura={apertura}
         onGuardado={(m) => setAviso(m)}
+      />
+
+      <AsistenteEvento
+        abierto={asistenteDefi}
+        onCerrar={() => setAsistenteDefi(false)}
+        ubicaciones={ubicaciones}
+        onGuardado={() => setAviso('Evento DeFi registrado: revisa las patas en Posiciones.')}
       />
     </div>
   )

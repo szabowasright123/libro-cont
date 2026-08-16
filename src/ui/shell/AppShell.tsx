@@ -7,6 +7,7 @@ import { RUTAS, useRuta, irA, type Ruta } from './rutas'
 import { HomePage } from '../pages/HomePage'
 import { DiarioPage } from '../pages/DiarioPage'
 import { CarteraPage } from '../pages/CarteraPage'
+import { PosicionesPage } from '../pages/PosicionesPage'
 import { ArchivoPage } from '../pages/ArchivoPage'
 import { TrazabilidadPage } from '../pages/TrazabilidadPage'
 import { FiscalPage } from '../pages/FiscalPage'
@@ -29,6 +30,8 @@ function Pagina({ ruta }: { ruta: Ruta }) {
       return <DiarioPage />
     case 'cartera':
       return <CarteraPage />
+    case 'posiciones':
+      return <PosicionesPage />
     case 'archivo':
       return <ArchivoPage />
     case 'trazabilidad':

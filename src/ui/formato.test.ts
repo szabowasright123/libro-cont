@@ -9,6 +9,7 @@ import {
   fmtFecha,
   fmtBytes,
   parseDecimalEntrada,
+  redondearCadena,
 } from './formato'
 
 describe('fmtDecimal', () => {
@@ -72,5 +73,29 @@ describe('parseDecimalEntrada', () => {
   })
   it('vacío → vacío', () => {
     expect(parseDecimalEntrada('  ')).toBe('')
+  })
+})
+
+describe('redondeo de presentación (D0: el prorrateo produce periódicos)', () => {
+  it('recorta a dos decimales redondeando al más cercano', () => {
+    expect(redondearCadena('29411.640952380952380952', 2)).toBe('29411.64')
+    expect(redondearCadena('2350.759047619047619', 2)).toBe('2350.76')
+    expect(redondearCadena('0.005', 2)).toBe('0.01')
+    expect(redondearCadena('-2.345', 2)).toBe('-2.35')
+  })
+
+  it('propaga el acarreo hasta crear una cifra nueva', () => {
+    expect(redondearCadena('9.999', 2)).toBe('10.00')
+    expect(redondearCadena('0.999', 2)).toBe('1.00')
+  })
+
+  it('no toca lo que ya cabe', () => {
+    expect(redondearCadena('4254.00', 2)).toBe('4254.00')
+    expect(redondearCadena('100', 2)).toBe('100')
+  })
+
+  it('fmtEuro muestra euros, no una tira de dígitos', () => {
+    expect(fmtEuro('29411.640952380952380952')).toBe('29.411,64 €')
+    expect(fmtEuro('4522.859047619047619')).toBe('4.522,86 €')
   })
 })

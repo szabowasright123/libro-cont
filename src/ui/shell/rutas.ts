@@ -9,6 +9,7 @@ export type Ruta =
   | 'inicio'
   | 'diario'
   | 'cartera'
+  | 'posiciones'
   | 'archivo'
   | 'trazabilidad'
   | 'fiscal'
@@ -22,6 +23,7 @@ export const RUTAS: { ruta: Ruta; etiqueta: string }[] = [
   { ruta: 'inicio', etiqueta: 'Inicio' },
   { ruta: 'diario', etiqueta: 'Diario' },
   { ruta: 'cartera', etiqueta: 'Cartera' },
+  { ruta: 'posiciones', etiqueta: 'Posiciones' },
   { ruta: 'archivo', etiqueta: 'Archivo' },
   { ruta: 'trazabilidad', etiqueta: 'Trazabilidad' },
   { ruta: 'fiscal', etiqueta: 'Fiscal' },
