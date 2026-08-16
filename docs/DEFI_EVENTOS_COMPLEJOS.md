@@ -1,6 +1,6 @@
 # DEFI_EVENTOS_COMPLEJOS.md — Catálogo de eventos DeFi y su integración en el Libro
 
-Documento de diseño. Estado: **validado parcialmente** por el autor del manual (ver §11). Tres cuestiones siguen abiertas y bloquean D0, D2 y D3.
+Documento de diseño. Estado: **validado por el autor del manual** (ver §11). Sin cuestiones bloqueantes abiertas.
 Fecha: 16 de agosto de 2026 · Versión de la app: v1.3.0
 
 Fuentes de verdad, por este orden: `PLANTILLA_TALLER.xlsx` → `docs/reference/DOMINIO.md` → MANUAL DE FISCALIDAD BITCOIN (Ed. 2026), Unidades 3 y 4 → doctrina DGT citada. Cuando este documento y el manual discrepen, manda el manual.
@@ -147,9 +147,15 @@ Patas:
 
 El manual llama la atención sobre esto último con razón: «quien apalanca su cartera debe saber que una liquidación de colateral es un hecho imponible».
 
-> **PENDIENTE DE CRITERIO DEL AUTOR.** La validación de 16-08-2026 resolvió el lado del prestamista (arriba); el del prestatario sigue abierto. No implementar B2 hasta cerrarlo.
+> **Criterio del autor (16-08-2026): la recepción del principal es neutra, pero abre lote con valor de adquisición.**
 >
-> **El lado del prestatario no está resuelto, ni en el manual ni en la doctrina.**
+> No hay implicación fiscal en la recepción —no es renta, no hay hecho imponible—, y sin embargo el activo recibido **sí tiene valor de adquisición**: el equivalente en euros de lo recibido **en el momento de recibirlo**. Recibir 10.000 USDC abre un lote de 10.000 USDC cuyo coste es su contravalor en euros ese día.
+>
+> Es exactamente el comportamiento del tipo **COMPRA** del catálogo: sin hecho imponible, fija lote FIFO. Con esto se resuelve el problema que motivaba la pregunta: si el prestatario vende después esos USDC, la ganancia se calcula contra un coste real y no contra cero.
+>
+> *Nota: la validación cubre expresamente la recepción. La pata de devolución sigue la recomendación previa —**PAGO**, que consume el lote—, con la consecuencia de que la variación de valor del activo entre la recepción y la devolución aflora como ganancia o pérdida patrimonial. Si la intención era neutralidad plena también en la devolución, hay que decirlo: cambia el resultado y el modelado.*
+
+**Antecedente de la cuestión** (se conserva porque explica por qué se preguntó):
 >
 > La tesis neutra del manual (U3.3.2) está construida desde la posición del **prestamista**: no realiza valor alguno porque recupera exactamente la misma cantidad de la misma especie. Del lado del prestatario el razonamiento no se traslada sin más, porque el art. 1753 CC dice que quien recibe en préstamo cosa fungible **adquiere su propiedad**.
 >
@@ -244,16 +250,15 @@ La diferencia —30.000 $ de tributación sobre valor que el titular nunca recib
 
 Consecuencia para la app: cuando el registro de la posición permita reconstruir el precio medio efectivamente obtenido, **conviene guardarlo junto al valor de mercado del activo entregado**. Son los dos números que hacen falta para sostener cualquiera de las dos posiciones ante una comprobación, y hoy ningún software cripto los conserva. Esto se implementa en cualquier caso.
 
-> **PENDIENTE DE CRITERIO DEL AUTOR.** Adoptar la tesis benévola (C1) **no cierra esta cuestión**, y conviene verlo con claridad porque es contraintuitivo.
+> **Criterio del autor (16-08-2026): se valora por el precio efectivamente obtenido.**
 >
-> La benévola determina **qué** se transmite: solo el neto, 5 ETH, en lugar del canje completo contra el LP token. Pero una vez identificada esa permuta neta, sigue habiendo que valorarla, y el art. 37.1.h manda tomar el **mayor** entre el valor de mercado de lo entregado (5 × 12.000 = 60.000) y el de lo recibido (30.000 DAI). Aplicada literalmente esa regla, el resultado vuelve a ser **45.000**, no 15.000.
+> Conviene subrayar por qué hacían falta las dos piezas, porque es contraintuitivo. La tesis benévola (C1) determina **qué** se transmite —solo el neto de 5 ETH, no el canje completo contra el LP token—, pero no dice por cuánto. Si a esa permuta neta se le aplicara literalmente la regla del mayor de los dos valores del art. 37.1.h (60.000 frente a 30.000), el resultado volvería a ser **45.000**. La benévola por sí sola no produce el resultado que persigue.
 >
-> Es decir: la tesis benévola por sí sola no produce el resultado que persigue. Hacen falta las dos piezas. Las opciones son:
+> El fundamento de la elección: en un AMM el valor de transmisión real es el que arroja la **secuencia de micro-operaciones de arbitraje**, cada una ejecutada al precio vigente en su instante. El «evento de salida» es una construcción contable, no un negocio jurídico único, y aplicarle una regla de valoración pensada para permutas singulares sobrevalora la transmisión en el importe exacto que el titular nunca recibió.
 >
-> - **(i) Valorar por el precio efectivamente obtenido** (30.000 ⇒ ganancia 15.000), sosteniendo que en un AMM el valor de transmisión real es el que arroja la secuencia de micro-operaciones y que el «evento de salida» es una construcción contable. Coherente con la elección benévola; se aparta de la letra del 37.1.h.
-> - **(ii) Aplicar el 37.1.h literalmente** (60.000 ⇒ ganancia 45.000), con lo que la benévola solo evita computar los activos que no se movieron, pero no corrige la sobrevaloración del neto.
->
-> Ambos números quedan registrados; lo que falta decidir es **cuál alimenta el informe fiscal por defecto**. Bloquea la fase D3.
+> Ganancia en el ejemplo: **15.000**.
+
+El motor guarda de todos modos los dos importes —el del art. 37.1.h y el efectivo— porque son los que permiten defender el criterio o recalcular bajo el contrario. Solo el efectivo alimenta el informe fiscal.
 
 ### Familia D · Derivados
 
@@ -439,13 +444,19 @@ Es una elección defendible y además la que evita convertir cada interacción e
 
 **El ETH sí sale del monedero.** El saldo baja. Si además no se consume lote, la cola FIFO de ETH conservará más unidades de las que el titular tiene realmente, y esa divergencia crece con cada operación hasta romper la conciliación entre SALDOS y FIFO —que es justo lo que el CUADRE existe para detectar—.
 
-> **PENDIENTE DE CRITERIO DEL AUTOR.** Hay que elegir qué hace el motor con el lote correspondiente al ETH gastado en gas:
+> **Criterio del autor (16-08-2026): opción (b) — consumir el lote y trasladar su coste.**
 >
-> - **(a) Consumir el lote sin resultado.** Se retira por su coste, con ganancia cero. SALDOS y FIFO siguen conciliados y no hay transmisión gravada. El coste retirado desaparece de la cartera.
-> - **(b) Consumir el lote y trasladar su coste.** Igual que (a), pero el coste FIFO del ETH gastado se incorpora al valor de adquisición (o minora el de transmisión) de la operación servida, en lugar del contravalor en euros del gas. Más coherente internamente; se aparta de la medición en euros del art. 35.
-> - **(c) No consumir lote.** Divergencia creciente entre saldo y cola. **Desaconsejada**: rompe el CUADRE.
->
-> Bloquea la fase D0, y D0 bloquea todo lo demás.
+> El lote del activo gastado en gas **se consume por su coste FIFO, sin generar ganancia ni pérdida**, y ese coste es el que se incorpora al valor de adquisición (o minora el valor de transmisión) de la operación a la que la comisión sirve —**en lugar** del contravalor en euros del gas—.
+
+Reglas exactas para el motor, que es donde esto se juega:
+
+1. La comisión en cripto **consume cola FIFO** del activo de la comisión, por orden de antigüedad, con troceo parcial de lote como cualquier otro consumo.
+2. El resultado de ese consumo es **cero**: no es una transmisión, luego no hay GyP que declarar. El motor debe registrarlo como consumo neutro y **excluirlo del informe fiscal**.
+3. El **coste FIFO retirado** se aplica a la operación servida: suma al valor de adquisición si la comisión es de adquisición, resta del valor de transmisión si es de venta.
+4. Si la comisión corresponde a un **traslado entre ubicaciones propias**, no hay operación servida a la que aplicar el coste: el lote se consume igualmente (regla 1, para que SALDOS y FIFO no diverjan) y el coste retirado **no es deducible en ninguna parte**, conforme a U4.3 del manual. Se pierde, que es exactamente lo que la ley quiere decir cuando dice que no es deducible.
+5. Si la comisión es en EUR, se mantiene el tratamiento actual de DOMINIO.md §4 sin cambios.
+
+La regla 3 es la que se aparta de la letra del art. 35, que mide los gastos inherentes por su importe real en euros. La justificación es de coherencia interna: si la entrega del ETH no es transmisión, su valor de mercado en ese momento nunca llega a realizarse, y lo único que el titular ha sacrificado de verdad es el coste con el que ese ETH entró en la cartera. Es una construcción **fundada pero no confirmada**, y como cualquier otra de este documento debe quedar documentada en `criterioAplicado`.
 
 Conviene resolverlo antes que DeFi: afecta a la exactitud de todas las carteras con actividad en cadena.
 
@@ -482,10 +493,10 @@ Y una advertencia que el manual hace y conviene que la app repita: el **FIFO glo
 
 | Fase | Contenido | Criterio de aceptación |
 |---|---|---|
-| **D0** | Comisiones en cripto (§8) — *bloqueada: falta el criterio del lote* | Golden test nuevo: cartera con gas en ETH; SALDOS y FIFO siguen conciliados |
+| **D0** | Comisiones en cripto (§8) | Golden test nuevo: cartera con gas en ETH; SALDOS y FIFO siguen conciliados |
 | **D1** | Campos `evento`, `posicionId`, `protocolo`, `criterioAplicado` + entidad `Posicion` + migración Dexie | Los 289 tests actuales siguen en verde |
-| **D2** | Familia A y B1 (staking, lending del prestamista, ejecución de garantía) | Caso de ejemplo ampliado; cuadre verde. **B2 fuera hasta cerrar el criterio** |
-| **D3** | Familia C (pools) bajo tesis benévola — *bloqueada: falta la valoración del neto* | Test del ejemplo de §C6: la permuta neta es 5 ETH por 30.000 DAI |
+| **D2** | Familias A y B completas (staking, lending de ambos lados, ejecución de garantía) | Caso de ejemplo ampliado; cuadre verde |
+| **D3** | Familia C (pools): tesis benévola + valoración por precio efectivo | Test del ejemplo de §C6: la permuta neta es 5 ETH por 30.000 DAI |
 | **D4** | Detector del art. 33.5.e (§4.3) | Batería de casos límite: recompra a los 11 meses, a los 13, compra previa a la venta |
 | **D5** | Familias E, F, G + panel de zonas grises con recálculo comparativo | Recálculo prudente/benévolo de una cartera con pools |
 | **D6** | 12.º tipo LIQUIDACIÓN DE DERIVADO (§7) | `CLAUDE.md` y DOMINIO.md §3.3 actualizados a doce tipos; golden test propio |
@@ -515,13 +526,15 @@ Javier Bravezo Durán, autor del manual, 16 de agosto de 2026.
 | 15 | Reducción del 30 % del art. 26.2 (A1) | Se ofrece con aviso |
 | 16 | Ubicación del documento | Se implementa en la app; el manual lo actualiza el autor manualmente |
 
-**Abiertas, por orden de bloqueo:**
+**Segunda ronda, 16-08-2026:**
 
-| Cuestión | Dónde | Bloquea |
+| # | Cuestión | Decisión |
 |---|---|---|
-| Qué hace el motor con el lote del ETH gastado en gas | §8 | D0 → y D0 bloquea el resto |
-| Valoración de la permuta neta a la salida del pool: art. 37.1.h o precio efectivo | §C6 | D3 |
-| Lending, lado del prestatario: recepción y devolución del principal | B2 | D2 (parcial) |
+| 17 | Lote del activo gastado en gas (§8) | **Opción (b)**: se consume por su coste FIFO con resultado cero, y ese coste —no el contravalor en euros— se traslada a la operación servida |
+| 18 | Valoración de la permuta neta al salir del pool (§C6) | **Precio efectivamente obtenido**. En un AMM el valor de transmisión real es el de la secuencia de micro-operaciones |
+| 19 | Recepción del principal por el prestatario (B2) | **Neutra, pero con valor de adquisición**: equivalente en euros en el momento de recibirlo. Se modela como COMPRA |
+
+**Abiertas:** ninguna bloqueante. Pendiente de confirmar únicamente si la **devolución** del principal por el prestatario sigue la recomendación (PAGO, que hace aflorar la variación de valor) o debe ser plenamente neutra.
 
 ---
 
