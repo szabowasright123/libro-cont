@@ -2,8 +2,12 @@
  * comisiones-cripto.test.ts — GOLDEN de la fase D0 (Regla de oro 9).
  *
  * Criterio del autor de 16-08-2026 (docs/DEFI_EVENTOS_COMPLEJOS.md §8): el pago de una
- * comisión en cripto NO es una transmisión, pero SÍ consume cola FIFO por su coste, y
- * ese coste —no el contravalor en euros del gas— se traslada a la operación servida.
+ * comisión en cripto NO es una transmisión, pero SÍ reduce la cola, y el coste retirado
+ * —no el contravalor en euros del gas— se traslada a la operación servida.
+ *
+ * La reducción se reparte PRORRATEADA entre todos los lotes vivos, no en orden FIFO: si el
+ * gas no es transmisión fiscal, tampoco puede serlo «de las unidades más antiguas». Así la
+ * estructura de antigüedad de la cola queda intacta para las transmisiones posteriores.
  *
  * El invariante que estos tests protegen es el que justifica toda la fase: el restante
  * de la cola FIFO debe COINCIDIR con el saldo real de cada activo. Antes de D0 divergían
@@ -19,6 +23,8 @@ import type { Apunte } from '../../src/engine/types'
 import { APUNTES_MINICASO, CORTE_2024 } from './mini-caso'
 
 const eq = (a: string, b: string) => D(a).equals(D(b))
+/** Tolerancia para las cifras que el prorrateo vuelve periódicas (ver golden/fifo). */
+const casi = (a: string, b: string) => D(a).minus(D(b)).abs().lessThan('1e-9')
 
 describe('GOLDEN · D0 · el restante FIFO coincide con el saldo real (mini-caso 2024)', () => {
   const fifo = calcularFifo(APUNTES_MINICASO)
@@ -49,10 +55,10 @@ describe('GOLDEN · D0 · la comisión en cripto consume cola sin ser transmisi�
   })
 
   it('su coste no es deducible: se pierde, no minora ninguna operación', () => {
-    // 17.730,10 (coste restante antes de D0) − 8,012 (0,0002 × 40.060 €/BTC del lote
-    // 2024-002). El manual U4.3 excluye la deducción de la comisión de un traslado
-    // entre ubicaciones propias, así que ese coste no reaparece en ningún otro sitio.
-    expect(eq(fifo.get('BTC')!.resumen.costeRestanteEUR, '17722.088')).toBe(true)
+    // 17.730,10 (coste restante antes de D0) menos el coste prorrateado de 0,0002 BTC
+    // entre los lotes vivos. El manual U4.3 excluye la deducción de la comisión de un
+    // traslado entre ubicaciones propias: ese coste no reaparece en ningún otro sitio.
+    expect(casi(fifo.get('BTC')!.resumen.costeRestanteEUR, '17721.7254545454545')).toBe(true)
   })
 })
 

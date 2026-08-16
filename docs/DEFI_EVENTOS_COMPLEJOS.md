@@ -450,9 +450,9 @@ Es una elección defendible y además la que evita convertir cada interacción e
 
 Reglas exactas para el motor, que es donde esto se juega:
 
-1. La comisión en cripto **consume cola FIFO** del activo de la comisión, por orden de antigüedad, con troceo parcial de lote como cualquier otro consumo.
+1. La comisión en cripto **reduce la cola** del activo de la comisión, **prorrateada entre todos los lotes vivos** en proporción a su cantidad restante — **no** por orden de antigüedad *(criterio del autor, segunda ronda)*. El fundamento: el FIFO es la regla de las **transmisiones** (art. 37.2 LIRPF, V0525-25), y si el gas no es transmisión fiscal tampoco puede serlo «de las unidades más antiguas». Imputarlo al lote más antiguo adelantaría su consumo y alteraría el coste de las ventas posteriores; con prorrateo, la estructura de antigüedad queda intacta. La DGT no se ha pronunciado sobre el método de conciliación: zona gris documentada.
 2. El resultado de ese consumo es **cero**: no es una transmisión, luego no hay GyP que declarar. El motor debe registrarlo como consumo neutro y **excluirlo del informe fiscal**.
-3. El **coste FIFO retirado** se aplica a la operación servida: suma al valor de adquisición si la comisión es de adquisición, resta del valor de transmisión si es de venta.
+3. El **coste retirado** —el medio ponderado de los lotes vivos— se aplica a la operación servida: suma al valor de adquisición si la comisión es de adquisición, resta del valor de transmisión si es de venta.
 4. Si la comisión corresponde a un **traslado entre ubicaciones propias**, no hay operación servida a la que aplicar el coste: el lote se consume igualmente (regla 1, para que SALDOS y FIFO no diverjan) y el coste retirado **no es deducible en ninguna parte**, conforme a U4.3 del manual. Se pierde, que es exactamente lo que la ley quiere decir cuando dice que no es deducible.
 5. Si la comisión es en EUR, se mantiene el tratamiento actual de DOMINIO.md §4 sin cambios.
 
@@ -530,9 +530,15 @@ Javier Bravezo Durán, autor del manual, 16 de agosto de 2026.
 
 | # | Cuestión | Decisión |
 |---|---|---|
-| 17 | Lote del activo gastado en gas (§8) | **Opción (b)**: se consume por su coste FIFO con resultado cero, y ese coste —no el contravalor en euros— se traslada a la operación servida |
+| 17 | Lote del activo gastado en gas (§8) | **Opción (b)**: se retira por su coste con resultado cero, y ese coste —no el contravalor en euros— se traslada a la operación servida |
 | 18 | Valoración de la permuta neta al salir del pool (§C6) | **Precio efectivamente obtenido**. En un AMM el valor de transmisión real es el de la secuencia de micro-operaciones |
 | 19 | Recepción del principal por el prestatario (B2) | **Neutra, pero con valor de adquisición**: equivalente en euros en el momento de recibirlo. Se modela como COMPRA |
+
+**Tercera ronda, 16-08-2026:**
+
+| # | Cuestión | Decisión |
+|---|---|---|
+| 20 | Método de conciliación de la reducción por gas con los lotes (§8) | **Prorrateo** entre todos los lotes vivos, en proporción a su cantidad restante. El gas reduce el stock sin ser transmisión, luego no puede imputarse a las unidades más antiguas por FIFO |
 
 **Abiertas:** ninguna bloqueante. Pendiente de confirmar únicamente si la **devolución** del principal por el prestatario sigue la recomendación (PAGO, que hace aflorar la variación de valor) o debe ser plenamente neutra.
 

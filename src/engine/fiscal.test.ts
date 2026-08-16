@@ -25,6 +25,8 @@ import { UBICACION_EXTERIOR } from './types'
 import { APUNTES_MINICASO, UBICACIONES_MINICASO } from '../../tests/golden/mini-caso'
 
 const eq = (a: string, b: string) => D(a).equals(D(b))
+/** Tolerancia para las cifras que el prorrateo del gas vuelve periódicas (D0). */
+const casi = (a: string, b: string) => D(a).minus(D(b)).abs().lessThan('1e-9')
 const SIN_JUST: Justificante[] = []
 
 const resumen2024 = calcularResumenFiscal(APUNTES_MINICASO, UBICACIONES_MINICASO, SIN_JUST, 2024)
@@ -38,12 +40,12 @@ describe('fiscal · reparto en cajones (mini-caso 2024)', () => {
     const { ahorro } = resumen2024
     expect(ahorro.operaciones).toHaveLength(6) // 4 VENTA + 2 PERMUTA (sin PÉRDIDA)
     expect(ahorro.operaciones.every((o) => o.tipo !== 'PERDIDA')).toBe(true)
-    // 2484 + 50 + 48 + 1197 + 794,797 + 149,4 = 4723,197 (todas ganancias en el mini-caso).
-    // La permuta 2024-006 aporta 794,797 y no 797 desde D0: su comisión de 0,001 ETH
-    // minora el valor de transmisión por su coste FIFO (2,203 €).
-    expect(eq(ahorro.gananciasEUR, '4723.197')).toBe(true)
+    // 2484 + 50 + 48 + 1197 + 794,7590… + 149,4 = 4723,1590… (todas ganancias).
+    // La permuta 2024-006 aporta 794,7590… y no 797 desde D0: su comisión de 0,001 ETH
+    // minora el valor de transmisión por su coste prorrateado (2,240952… €).
+    expect(casi(ahorro.gananciasEUR, '4723.1590476190476')).toBe(true)
     expect(eq(ahorro.perdidasEUR, '0')).toBe(true)
-    expect(eq(ahorro.netoEUR, '4723.197')).toBe(true)
+    expect(casi(ahorro.netoEUR, '4723.1590476190476')).toBe(true)
   })
 
   it('RCM (RENDIMIENTO): staking ETH 150 + staking ADA 2 + interés USDC 5 = 157 €', () => {
@@ -77,7 +79,7 @@ describe('fiscal · reparto en cajones (mini-caso 2024)', () => {
       (acc, x) => acc.plus(D(x.resultadoEUR)),
       D('0'),
     )
-    expect(eq(totalFifo.toFixed(), '4522.897')).toBe(true)
+    expect(casi(totalFifo.toFixed(), '4522.8590476190476')).toBe(true)
     const suma = D(resumen2024.ahorro.netoEUR).plus(D(resumen2024.perdidas.totalEUR))
     expect(eq(suma.toFixed(), totalFifo.toFixed())).toBe(true)
   })

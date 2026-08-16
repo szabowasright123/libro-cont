@@ -21,8 +21,15 @@
  * COMISIONES EN CRIPTO (fase D0 — criterio del autor 16-08-2026, docs/DEFI_EVENTOS_COMPLEJOS.md §8).
  * Este punto se APARTA deliberadamente de la plantilla, que no consumía cola por las
  * comisiones pagadas en cripto y dejaba divergir el restante FIFO del saldo real. Reglas:
- *   1. La comisión en un activo distinto de EUR CONSUME cola de ese activo, por orden de
- *      antigüedad y con troceo parcial, igual que cualquier otro consumo.
+ *   1. La comisión en un activo distinto de EUR reduce la cola de ese activo, pero NO por
+ *      orden de antigüedad: se reparte PRORRATEADA entre todos los lotes vivos, en
+ *      proporción a su cantidad restante (criterio del autor 16-08-2026). El fundamento
+ *      es que si el gas no es transmisión fiscal, tampoco puede serlo «de las unidades más
+ *      antiguas»: el FIFO es la regla de las TRANSMISIONES (art. 37.2 LIRPF y V0525-25), y
+ *      aplicarlo a una reducción que no transmite adelantaría el consumo de los lotes
+ *      antiguos y alteraría el coste de las ventas posteriores. Con prorrateo, la
+ *      estructura de antigüedad de la cola se conserva intacta. La DGT no se ha
+ *      pronunciado sobre el método de conciliación: es zona gris documentada.
  *   2. Ese consumo NO es una transmisión: su resultado es CERO y no aparece en el informe
  *      fiscal (el pago de gas en cripto no se considera transmisión).
  *   3. El COSTE FIFO retirado —no el contravalor en euros del gas— se aplica a la operación
@@ -63,9 +70,12 @@ interface LoteVivo {
   apunteId: string
   fechaHora: string
   cantidadInicial: Decimal
+  /** Restante en la ESCALA `escalaBase`; usa `materializar` antes de leerlo. */
   cantidadRestante: Decimal
   costeTotalEUR: Decimal
   costeUnitarioEUR: Decimal
+  /** Escala de la cola cuando este lote se materializó por última vez (ver `escala`). */
+  escalaBase: Decimal
 }
 
 /** Resultado del cálculo FIFO de UN activo. */
@@ -105,6 +115,23 @@ interface ColaViva {
   adquiridoTotal: Decimal
   consumidoTotal: Decimal
   transmisiones: ResultadoTransmision[]
+  /**
+   * Agregados de lo que sigue vivo en la cola. Se mantienen de forma incremental para que
+   * el prorrateo no necesite recorrer los lotes solo para saber cuánto hay: con 5.000
+   * apuntes y una comisión en cripto por traslado, esa pasada extra convertía el motor en
+   * cuadrático. Son sumas y restas exactas, sin división: no arrastran error.
+   */
+  cantidadViva: Decimal
+  costeVivo: Decimal
+  /**
+   * Escala acumulada de los prorrateos aplicados a esta cola.
+   *
+   * Un prorrateo reduce TODOS los lotes vivos por el MISMO factor, así que aplicarlo lote a
+   * lote es innecesario: basta con multiplicar esta escala y materializar cada lote la
+   * primera vez que se le toca. Sin esto, cada comisión en cripto recorría toda la cola y
+   * el recálculo de 5.000 apuntes pasaba de 166 ms a más de 4 segundos.
+   */
+  escala: Decimal
 }
 
 function colaNueva(): ColaViva {
@@ -114,7 +141,20 @@ function colaNueva(): ColaViva {
     adquiridoTotal: CERO,
     consumidoTotal: CERO,
     transmisiones: [],
+    cantidadViva: CERO,
+    costeVivo: CERO,
+    escala: D(1),
   }
+}
+
+/**
+ * Pone al día el restante de un lote con los prorrateos ocurridos desde la última vez que
+ * se le tocó. Hay que llamarla ANTES de leer o escribir `cantidadRestante`.
+ */
+function materializar(cola: ColaViva, lote: LoteVivo): void {
+  if (lote.escalaBase.equals(cola.escala)) return
+  lote.cantidadRestante = lote.cantidadRestante.times(cola.escala).div(lote.escalaBase)
+  lote.escalaBase = cola.escala
 }
 
 /** Resultado de consumir cantidad de una cola: coste FIFO retirado y detalle por lote. */
@@ -137,6 +177,7 @@ function retirarDeCola(cola: ColaViva, cantidad: Decimal): Retirada {
 
   while (porConsumir.greaterThan(0) && cola.cursor < cola.lotes.length) {
     const lote = cola.lotes[cola.cursor]!
+    materializar(cola, lote)
     if (lote.cantidadRestante.lessThanOrEqualTo(0)) {
       cola.cursor++
       continue
@@ -156,11 +197,59 @@ function retirarDeCola(cola: ColaViva, cantidad: Decimal): Retirada {
   }
 
   cola.consumidoTotal = cola.consumidoTotal.plus(cantidad.minus(porConsumir))
+  cola.cantidadViva = cola.cantidadViva.minus(cantidad.minus(porConsumir))
+  cola.costeVivo = cola.costeVivo.minus(costeFifo)
   return { costeFifo, consumos, sinCoste: porConsumir }
+}
+
+/**
+ * Reduce la cola PRORRATEADA entre todos los lotes vivos, en proporción a su cantidad
+ * restante. Muta la cola. Es la regla de las comisiones pagadas en cripto (D0, regla 1):
+ * el gas reduce el stock sin ser transmisión, así que no puede imputarse a los lotes más
+ * antiguos como si lo fuera.
+ *
+ * Devuelve el coste medio ponderado retirado —el de las unidades que efectivamente han
+ * salido—, que es el que se traslada a la operación servida.
+ *
+ * El residuo de redondeo se asigna al último lote vivo para que la suma de las partes sea
+ * EXACTAMENTE la cantidad pedida: con divisiones periódicas (1/3 de un lote, por ejemplo)
+ * la suma de los cocientes no cierra por sí sola, y la cola quedaría descuadrada respecto
+ * del saldo, que es justo lo que D0 viene a evitar.
+ */
+function retirarProrrateado(cola: ColaViva, cantidad: Decimal): Retirada {
+  const disponible = cola.cantidadViva
+  if (disponible.lessThanOrEqualTo(0)) {
+    return { costeFifo: CERO, consumos: [], sinCoste: cantidad }
+  }
+
+  // Cola insuficiente: se retira todo lo que hay y se informa del faltante.
+  const aRetirar = Decimal.min(cantidad, disponible)
+
+  // Coste medio ponderado de lo retirado, en O(1) sobre los agregados vivos. Es
+  // idénticamente igual a repartir lote a lote: Σ(costeUnit_i × rest_i × k) = k × costeVivo,
+  // con k = aRetirar / disponible.
+  const costeFifo = aRetirar.times(cola.costeVivo).div(disponible)
+
+  // La reducción es UNIFORME: cada lote vivo se queda con la misma fracción
+  // (disponible − aRetirar) / disponible. En lugar de recorrer la cola, se acumula ese
+  // factor en la escala y cada lote se pone al día cuando se le toca (`materializar`).
+  // Así el prorrateo es O(1) y la estructura relativa de la cola no cambia: solo encoge.
+  //
+  // No se emite detalle por lote: un prorrateo roza TODOS los lotes vivos, de modo que el
+  // detalle sería una lista de miles de entradas de importe ínfimo. El hecho relevante es
+  // «se pagó gas», no de qué lote salió cada millonésima.
+  cola.escala = cola.escala.times(disponible.minus(aRetirar)).div(disponible)
+  const asignado = aRetirar
+  cola.consumidoTotal = cola.consumidoTotal.plus(asignado)
+  cola.cantidadViva = cola.cantidadViva.minus(asignado)
+  cola.costeVivo = cola.costeVivo.minus(costeFifo)
+  return { costeFifo, consumos: [], sinCoste: cantidad.minus(asignado) }
 }
 
 /** Vuelca una cola viva a su resumen inmutable. */
 function resumirCola(activo: SimboloActivo, cola: ColaViva): ColaFifoResumen {
+  for (const l of cola.lotes) materializar(cola, l)
+
   const lotesAbiertos: LoteFifo[] = cola.lotes
     .filter((l) => l.cantidadRestante.greaterThan(0))
     .map((l) => ({
@@ -173,12 +262,11 @@ function resumirCola(activo: SimboloActivo, cola: ColaViva): ColaFifoResumen {
       costeUnitarioEUR: aCadena(l.costeUnitarioEUR),
     }))
 
-  // Coste del restante EXACTO: costeTotal × restante / inicial por lote (no usar el
-  // coste unitario, que puede ser periódico —p. ej. 550/300— y arrastrar error).
-  const costeRestante = cola.lotes.reduce<Decimal>(
-    (acc, l) => acc.plus(l.costeTotalEUR.times(l.cantidadRestante).div(l.cantidadInicial)),
-    CERO,
-  )
+  // Coste del restante: se toma del agregado incremental `costeVivo`, no de la suma lote a
+  // lote. Ambos coinciden en la operativa FIFO pura, pero el agregado es el valor EXACTO
+  // cuando hay prorrateos de por medio: se construye restando exactamente los costes
+  // retirados, sin volver a dividir por cantidades que ya vienen de una división.
+  const costeRestante = cola.costeVivo
 
   return {
     activo,
@@ -248,10 +336,11 @@ function calcularFifoTodos(apuntes: Apunte[]): Map<SimboloActivo, ResultadoFifoA
     }
 
     // 2. Consumo por comisión en cripto. NO es transmisión: resultado cero, fuera del
-    //    informe fiscal. Solo se retira para que SALDOS y FIFO no diverjan (D0, regla 1-2).
+    //    informe fiscal. Se retira PRORRATEADO, no en orden FIFO, porque el FIFO es la
+    //    regla de las transmisiones y esto no lo es (D0, regla 1).
     let costeComision = CERO
     const com = comisionCripto(ap)
-    if (com) costeComision = retirarDeCola(cola(com.activo), com.cantidad).costeFifo
+    if (com) costeComision = retirarProrrateado(cola(com.activo), com.cantidad).costeFifo
 
     // 3. Cierre de la transmisión. El coste FIFO de la comisión minora el valor de
     //    transmisión (gasto inherente, art. 35.2 LIRPF) — D0, regla 3.
@@ -294,8 +383,12 @@ function calcularFifoTodos(apuntes: Apunte[]): Map<SimboloActivo, ResultadoFifoA
           cantidadRestante: cantidad,
           costeTotalEUR: coste,
           costeUnitarioEUR: coste.div(cantidad),
+          // Nace en la escala actual: los prorrateos anteriores no le afectan.
+          escalaBase: c.escala,
         })
         c.adquiridoTotal = c.adquiridoTotal.plus(cantidad)
+        c.cantidadViva = c.cantidadViva.plus(cantidad)
+        c.costeVivo = c.costeVivo.plus(coste)
       }
     }
   }

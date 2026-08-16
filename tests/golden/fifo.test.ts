@@ -26,6 +26,13 @@ function t(activo: string, apunteId: string) {
 }
 
 /** Igualdad decimal exacta. */
+/**
+ * Comparación con tolerancia. El prorrateo del gas (D0) introduce divisiones periódicas
+ * —repartir 0,001 ETH entre 1,05 unidades no tiene representación decimal finita—, así que
+ * estas cifras se contrastan con margen en lugar de con una cadena de cuarenta dígitos.
+ * La tolerancia (1e-9 €) es tres órdenes de magnitud más fina que el céntimo.
+ */
+const casi = (a: string, b: string) => D(a).minus(D(b)).abs().lessThan('1e-9')
 const eq = (a: string, b: string) => D(a).equals(D(b))
 
 describe('FIFO · GyP por transmisión (mini-caso 2024)', () => {
@@ -71,10 +78,11 @@ describe('FIFO · GyP por transmisión (mini-caso 2024)', () => {
     // que desde D0 también consume cola (docs/DEFI_EVENTOS_COMPLEJOS.md §8).
     expect(eq(r.consumidoTotal, '0.1652')).toBe(true)
     expect(eq(r.restanteTotal, '0.4068')).toBe(true)
-    // 17.730,10 − 8,012 (coste FIFO de 0,0002 BTC del lote 2024-002 @40.060/BTC).
-    // Ese coste NO es deducible: la comisión sirve a un traslado entre ubicaciones
-    // propias (manual U4.3), así que se pierde en lugar de trasladarse a ninguna parte.
-    expect(eq(r.costeRestanteEUR, '17722.088')).toBe(true)
+    // 17.730,10 menos el coste PRORRATEADO de 0,0002 BTC entre los lotes vivos en esa
+    // fecha (2024-002 a 40.060 €/BTC y 2024-006 a 60.000 €/BTC). Ese coste NO es
+    // deducible: la comisión sirve a un traslado entre ubicaciones propias (manual U4.3),
+    // así que se pierde en lugar de trasladarse a ninguna parte.
+    expect(casi(r.costeRestanteEUR, '17721.7254545454545')).toBe(true)
   })
 
   it('BTC · el restante FIFO COINCIDE con el saldo físico (invariante de D0)', () => {
@@ -85,13 +93,15 @@ describe('FIFO · GyP por transmisión (mini-caso 2024)', () => {
 
   // ── ETH ────────────────────────────────────────────────────────────────────
   // Cola ETH: Lote 2024-003 COMPRA 2 @2.203 · 2024-004 RENDIMIENTO 0,05 @3.000.
-  it('2024-006 PERMUTA entrega 1 ETH · GyP = (3000 − 2,203) − 2203 = 794,797', () => {
+  it('2024-006 PERMUTA entrega 1 ETH · GyP = (3000 − 2,2409…) − 2203 = 794,7590…', () => {
     const x = t('ETH', '2024-006')
-    // La comisión de 0,001 ETH minora el valor de transmisión por su COSTE FIFO
-    // (0,001 × 2.203 = 2,203 €), no por su valor de mercado — D0, regla 3.
-    expect(eq(x.valorTransmisionNetoEUR, '2997.797')).toBe(true)
+    // La comisión de 0,001 ETH minora el valor de transmisión por su coste PRORRATEADO,
+    // no por su valor de mercado (D0, regla 3). El prorrateo se calcula DESPUÉS de
+    // consumir el ETH transmitido: quedan 1,05 ETH vivos con coste 2.353 €, luego
+    // 0,001 × 2.353 / 1,05 = 2,240952… €.
+    expect(casi(x.valorTransmisionNetoEUR, '2997.7590476190476')).toBe(true)
     expect(eq(x.costeFifoEUR, '2203')).toBe(true) // 1 × 2.203
-    expect(eq(x.resultadoEUR, '794.797')).toBe(true)
+    expect(casi(x.resultadoEUR, '794.7590476190476')).toBe(true)
     // 1 ETH transmitido + 0,001 de comisión: la cola queda en 1,049, igual que el saldo.
     expect(eq(resumen('ETH').restanteTotal, '1.049')).toBe(true)
   })
@@ -127,13 +137,13 @@ describe('FIFO · GyP por transmisión (mini-caso 2024)', () => {
   })
 
   // ── Totales ──────────────────────────────────────────────────────────────────
-  it('total de GyP de todas las transmisiones 2024 = 4522,897 (7 transmisiones)', () => {
+  it('total de GyP de todas las transmisiones 2024 = 4522,8590… (7 transmisiones)', () => {
     const todas = transmisionesDelDiario(APUNTES_MINICASO)
     expect(todas).toHaveLength(7)
     const total = todas.reduce((acc, x) => acc.plus(D(x.resultadoEUR)), D('0'))
-    // 4.525,10 antes de D0; la diferencia de 2,203 es el coste FIFO de la comisión
-    // en ETH de la permuta 2024-006, que ahora minora su valor de transmisión.
-    expect(eq(total.toFixed(), '4522.897')).toBe(true)
+    // 4.525,10 antes de D0; la diferencia de 2,2409… es el coste prorrateado de la
+    // comisión en ETH de la permuta 2024-006, que ahora minora su valor de transmisión.
+    expect(casi(total.toFixed(), '4522.8590476190476')).toBe(true)
     // Todas en el ejercicio 2024.
     expect(todas.every((x) => x.ejercicio === 2024)).toBe(true)
   })
