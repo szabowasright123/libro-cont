@@ -1,6 +1,6 @@
 # DEFI_EVENTOS_COMPLEJOS.md — Catálogo de eventos DeFi y su integración en el Libro
 
-Documento de diseño. Estado: **propuesta**, pendiente de validación doctrinal por el autor del manual.
+Documento de diseño. Estado: **validado parcialmente** por el autor del manual (ver §11). Tres cuestiones siguen abiertas y bloquean D0, D2 y D3.
 Fecha: 16 de agosto de 2026 · Versión de la app: v1.3.0
 
 Fuentes de verdad, por este orden: `PLANTILLA_TALLER.xlsx` → `docs/reference/DOMINIO.md` → MANUAL DE FISCALIDAD BITCOIN (Ed. 2026), Unidades 3 y 4 → doctrina DGT citada. Cuando este documento y el manual discrepen, manda el manual.
@@ -116,7 +116,12 @@ Patas:
 | Interés cobrado | **RENDIMIENTO** | RCM, base del ahorro, sin gastos deducibles. |
 | Devolución | **TRANSFERENCIA** | Solo si es el mismo activo y la misma cantidad. |
 | Devolución en activo distinto | **PERMUTA** | Salta el aviso del límite 2. |
-| Impago | **PÉRDIDA** | Con el régimen del art. 14.2.k: no computable hasta que concurra una de las tres circunstancias. |
+| **Ejecución de la garantía** | **COMPRA** | Ver abajo. Valor de adquisición = valor de mercado del colateral **en la fecha de la ejecución**. |
+| Impago sin garantía | **PÉRDIDA** | Con el régimen del art. 14.2.k: no computable hasta que concurra una de las tres circunstancias. |
+
+> **Criterio del autor (16-08-2026).** La neutralidad del lado del prestamista se mantiene **salvo que se ejecute la garantía**. Cuando el prestamista se queda con el colateral, esa adquisición es una **COMPRA**, y el valor de adquisición que abre el lote FIFO es el valor de mercado del activo en el momento de la ejecución —no el importe del crédito impagado ni el valor que tuviera al constituirse la garantía—.
+>
+> La consecuencia práctica es doble y conviene que la app la haga visible: el prestamista incorpora un activo con base actualizada, y el crédito impagado deja de seguir el camino del art. 14.2.k porque ha sido satisfecho en especie. La ejecución cierra la operación en lugar de abrir la espera de las tres circunstancias.
 
 Nota sobre los *receipt tokens* (aUSDC de Aave, cTokens de Compound): si el protocolo entrega un token que representa la posición, la operación deja de parecerse a una entrega neutra y se aproxima al esquema del staking líquido. La tesis prudente los trata como permuta. Es zona gris.
 
@@ -142,7 +147,9 @@ Patas:
 
 El manual llama la atención sobre esto último con razón: «quien apalanca su cartera debe saber que una liquidación de colateral es un hecho imponible».
 
-> **Aviso — el lado del prestatario no está resuelto, ni en el manual ni en la doctrina.**
+> **PENDIENTE DE CRITERIO DEL AUTOR.** La validación de 16-08-2026 resolvió el lado del prestamista (arriba); el del prestatario sigue abierto. No implementar B2 hasta cerrarlo.
+>
+> **El lado del prestatario no está resuelto, ni en el manual ni en la doctrina.**
 >
 > La tesis neutra del manual (U3.3.2) está construida desde la posición del **prestamista**: no realiza valor alguno porque recupera exactamente la misma cantidad de la misma especie. Del lado del prestatario el razonamiento no se traslada sin más, porque el art. 1753 CC dice que quien recibe en préstamo cosa fungible **adquiere su propiedad**.
 >
@@ -158,18 +165,26 @@ El manual llama la atención sobre esto último con razón: «quien apalanca su 
 
 Tributación: **la DGT no se ha pronunciado** sobre si la recepción del LP token es en sí un hecho imponible. Conviven dos lecturas (U4.5):
 
-- **Prudente (recomendada):** cada canje entre los activos y el LP token es una permuta del art. 37.1.h → GP en base del ahorro.
+- **Prudente:** cada canje entre los activos y el LP token es una permuta del art. 37.1.h → GP en base del ahorro.
 - **Benévola:** el LP token es un simple resguardo; no hay alteración hasta la retirada.
 
-El manual se decanta por la prudente y por documentarla. La app debe implementar la prudente **por defecto** y permitir la benévola como criterio explícito registrado en `criterioAplicado`.
+> **Criterio del autor (16-08-2026): se implementa la BENÉVOLA por defecto.** La app debe **advertir siempre** de que existen las dos lecturas y permitir recalcular bajo la prudente, registrando la elección en `criterioAplicado`.
 
-**Problema de modelado, y es serio.** El apunte actual tiene un solo `activoSalida` y un solo `activoEntrada`. Una aportación de 1 ETH + 2.000 USDC a cambio de un LP token es una permuta de dos activos por uno. Solución propuesta: **dos apuntes PERMUTA hermanados por `posicionId`**, repartiendo la cantidad de LP token recibida en proporción al contravalor en euros de cada activo aportado:
+Consecuencias de esta elección, que son de calado y conviene enunciarlas:
 
-```
-LP_asignado_i = LP_total × (contravalorEUR_i / Σ contravalorEUR)
-```
+**a) La aportación no es un hecho imponible.** No hay permuta, no se consumen lotes y no se abre lote de LP token. Los activos aportados no salen del patrimonio: se trasladan.
 
-Esto mantiene el modelo de datos intacto, hace que el CUADRE siga cuadrando y produce dos lotes FIFO de LP token cuyo coste agregado es el correcto. La contrapartida es que la cola FIFO del LP token tiene dos lotes por aportación en lugar de uno; es inocuo, porque FIFO trocea lotes de todos modos.
+Pata: **una TRANSFERENCIA por activo aportado**, con destino a la ubicación que representa el pool. Sin efecto fiscal, con el CUADRE siguiendo el saldo por ubicación.
+
+**b) Desaparece el problema de modelado.** Con la tesis prudente había que partir la aportación en dos permutas y repartir el LP token en proporción al contravalor de cada activo. Con la benévola eso ya no hace falta: **el LP token no es un activo con cola FIFO**, sino un resguardo. Entra en el catálogo de activos marcado como *no computable*, únicamente para que la posición sea reconstruible y para que el usuario vea en Cartera lo que tiene.
+
+Es un beneficio secundario nada menor: la tesis benévola es además la que produce el registro más simple y la que no ensucia las colas FIFO con lotes de un token que nadie negocia.
+
+**c) El hecho imponible se traslada íntegro a la retirada**, y allí se calcula por diferencia entre lo aportado y lo recuperado (ver C3).
+
+**d) Queda un caso que la tesis benévola debe resolver: la venta del LP token sin retirar.** Si el titular transmite el resguardo a un tercero en lugar de canjearlo por los subyacentes, hay transmisión y hace falta un valor de adquisición.
+
+La salida de Vikay —recalificar retroactivamente la aportación como permuta— no sirve: haría depender la calificación de un hecho pasado de un hecho futuro y ajeno (Anexo A, punto f). La solución coherente con la tesis benévola es tratar la venta del LP **como transmisión de la posición subyacente**: se consumen los lotes FIFO de los activos aportados que siguen representados por ese resguardo, y el valor de transmisión es el precio obtenido por el LP. El resguardo nunca llega a tener coste propio, que es justo lo que sostiene la tesis benévola.
 
 #### C2. POOL_RECOMPENSA — comisiones de intercambio e incentivos
 
@@ -179,7 +194,25 @@ Pata: **RENDIMIENTO**, con `posicionId` apuntando al pool. Se imputa con indepen
 
 #### C3. POOL_RETIRADA — se canjea el LP token por los subyacentes
 
-Simétrico de C1: **dos apuntes PERMUTA** (LP token → activo A, LP token → activo B), consumiendo la cola FIFO del LP token, con el mismo reparto proporcional por contravalor.
+Aquí es donde, bajo la tesis benévola, aflora todo. El cálculo se hace **por diferencia entre lo aportado y lo recuperado, activo a activo**:
+
+1. Para cada activo, `neto_i = cantidad_recuperada_i − cantidad_aportada_i`.
+2. Los activos con `neto_i < 0` han salido del patrimonio: son la **entrega**.
+3. Los activos con `neto_i > 0` han entrado: son la **contraprestación**.
+4. Se registra una **PERMUTA** entre unos y otros. Los activos cuyo neto es cero no generan apunte alguno: nunca dejaron de ser del titular.
+5. Vuelta de los saldos: **una TRANSFERENCIA por activo** desde la ubicación del pool, para que el CUADRE cierre.
+
+En el ejemplo de §C6 —entran 10 ETH + 30.000 DAI, salen 5 ETH + 60.000 DAI— el resultado es **una sola permuta: 5 ETH por 30.000 DAI**. Los otros 5 ETH y los 30.000 DAI iniciales no se tocan: siguen en la cartera, con su antigüedad y su coste FIFO intactos.
+
+Esto es exactamente lo que persigue la tesis benévola, y es también lo que hace desaparecer el artefacto que denunciaba Vikay: no se computa una transmisión de activos que el titular conserva.
+
+Cuando el pool tenga **más de dos activos** con netos de signo contrario (típico en pools tricrypto), la permuta es multiactivo y sí hace falta el reparto proporcional por contravalor en euros:
+
+```
+asignado_ij = entrada_j × (contravalorEUR_salida_i / Σ contravalorEUR_salidas)
+```
+
+Es la única situación en la que sobrevive la fórmula de reparto, y por eso sigue en §4.2.
 
 #### C4. IMPERMANENT_LOSS — **no es un evento registrable**
 
@@ -209,7 +242,18 @@ Un ejemplo hace visible el problema. Aportación de 10 ETH (coste 3.000 $/ETH) +
 
 La diferencia —30.000 $ de tributación sobre valor que el titular nunca recibió— no nace de calificar la operación como permuta. Nace de aplicar la regla del mayor valor a un **evento sintético**: un pool no hace un intercambio al salir, hace miles de micro-operaciones de arbitraje a lo largo del tiempo, cada una al precio vigente en ese instante. Si se pudieran registrar todas, el importe acumulado de las transmisiones de ETH sería ≈ 30.000, no 60.000. Colapsar esa secuencia en un único canje de salida es una simplificación contable, y es esa simplificación —no la calificación— la que infla la base.
 
-Consecuencia para la app: cuando el registro de la posición permita reconstruir el precio medio efectivamente obtenido, **conviene guardarlo junto al valor de mercado del activo entregado**. Son los dos números que hacen falta para sostener cualquiera de las dos posiciones ante una comprobación, y hoy ningún software cripto los conserva.
+Consecuencia para la app: cuando el registro de la posición permita reconstruir el precio medio efectivamente obtenido, **conviene guardarlo junto al valor de mercado del activo entregado**. Son los dos números que hacen falta para sostener cualquiera de las dos posiciones ante una comprobación, y hoy ningún software cripto los conserva. Esto se implementa en cualquier caso.
+
+> **PENDIENTE DE CRITERIO DEL AUTOR.** Adoptar la tesis benévola (C1) **no cierra esta cuestión**, y conviene verlo con claridad porque es contraintuitivo.
+>
+> La benévola determina **qué** se transmite: solo el neto, 5 ETH, en lugar del canje completo contra el LP token. Pero una vez identificada esa permuta neta, sigue habiendo que valorarla, y el art. 37.1.h manda tomar el **mayor** entre el valor de mercado de lo entregado (5 × 12.000 = 60.000) y el de lo recibido (30.000 DAI). Aplicada literalmente esa regla, el resultado vuelve a ser **45.000**, no 15.000.
+>
+> Es decir: la tesis benévola por sí sola no produce el resultado que persigue. Hacen falta las dos piezas. Las opciones son:
+>
+> - **(i) Valorar por el precio efectivamente obtenido** (30.000 ⇒ ganancia 15.000), sosteniendo que en un AMM el valor de transmisión real es el que arroja la secuencia de micro-operaciones y que el «evento de salida» es una construcción contable. Coherente con la elección benévola; se aparta de la letra del 37.1.h.
+> - **(ii) Aplicar el 37.1.h literalmente** (60.000 ⇒ ganancia 45.000), con lo que la benévola solo evita computar los activos que no se movieron, pero no corrige la sobrevaloración del neto.
+>
+> Ambos números quedan registrados; lo que falta decidir es **cuál alimenta el informe fiscal por defecto**. Bloquea la fase D3.
 
 ### Familia D · Derivados
 
@@ -284,13 +328,14 @@ El veToken es intransferible y no negociable, lo que dificulta sostener que haya
 | A2 | Staking nativo / delegación | RENDIMIENTO (o MINERÍA si PoW) | RCM art. 25.2 / AE art. 27.1 | Ahorro / General | V1766-22, V3625-16 |
 | A3 | Staking líquido | PERMUTA + RENDIMIENTO + PERMUTA | GP art. 37.1.h + RCM | Ahorro | Manual U4.1.2 |
 | B1 | Lending (prestamista) | TRANSFERENCIA + RENDIMIENTO + TRANSFERENCIA | RCM art. 25.2 | Ahorro | V0648-24; arts. 1740/1753 CC |
-| B2 | Lending (prestatario) | TRANSFERENCIA (colateral) + COMPRA/PAGO (principal) + PAGO (intereses) | Intereses no deducibles; ejecución = transmisión | Ahorro | Manual U3.3.2, U4.3 — **decisión abierta** |
-| C1 | Aportación a pool | 2 × PERMUTA | GP art. 37.1.h (tesis prudente) | Ahorro | Manual U4.5 — **sin criterio DGT** |
+| B1b | Ejecución de la garantía (prestamista) | **COMPRA** | Adquisición a valor de mercado en la fecha de ejecución | — | Criterio del autor 16-08-2026 |
+| B2 | Lending (prestatario) | TRANSFERENCIA (colateral) + PAGO (intereses) | Intereses no deducibles; ejecución = transmisión | Ahorro | **PENDIENTE de criterio** |
+| C1 | Aportación a pool | N × TRANSFERENCIA | Sin hecho imponible (tesis benévola) | — | Criterio del autor 16-08-2026 |
 | C2 | Recompensas de pool / farming | RENDIMIENTO | RCM art. 25.2 | Ahorro | **V0648-24** |
-| C3 | Retirada de pool | 2 × PERMUTA | GP art. 37.1.h | Ahorro | Manual U4.5 |
+| C3 | Retirada de pool | PERMUTA **del neto** + N × TRANSFERENCIA | GP sobre la diferencia aportado/recuperado | Ahorro | Criterio del autor; valoración **pendiente** |
 | C4 | Impermanent loss | **ninguna** | Lucro cesante, no computable | — | Manual U4.5 |
 | C5 | Vault autocompuesto | PERMUTA o RENDIMIENTO | Según acredite tokens | Ahorro | Zona gris |
-| D1 | Derivados por diferencias | **ver §7** | GP arts. 33.1/34 | Ahorro | Línea CFD; **no** art. 37.1.m |
+| D1 | Derivados por diferencias | **LIQUIDACIÓN DE DERIVADO** (12.º tipo) | GP arts. 33.1/34 | Ahorro | Línea CFD; **no** art. 37.1.m |
 | E1 | Wrapping | PERMUTA | GP art. 37.1.h | Ahorro | Zona gris |
 | E2 | Bridge | TRANSFERENCIA o PERMUTA | Según identidad del activo | — / Ahorro | Sin criterio DGT |
 | E4 | Router / multihop | 1 × PERMUTA (no N) | GP art. 37.1.h | Ahorro | Art. 13 LGT — sin criterio DGT |
@@ -369,7 +414,11 @@ Los derivados no son apuntes del Diario, sino una entidad `PosicionDerivada` con
 **Opción 3 — Campo `calificacionFiscal` como override.**
 Un apunte con forma de PERMUTA que declara expresamente su cajón fiscal. Máxima flexibilidad, y por eso mismo el mayor riesgo: convierte una validación dura en un campo libre y abre la puerta a que cualquier apunte se autocalifique.
 
-**Recomendación: opción 1.** Es la única que mantiene un solo Libro, un solo motor y una calificación correcta. La regla de oro 7 existe para impedir que la app invente tipos por comodidad de implementación; aquí no se trata de comodidad, sino de una familia de operaciones que el catálogo de 2026 no contempló. Si se adopta, el cambio debe entrar **primero en el manual** y después en la app, con su fila en la Tabla 7 y su golden test propio.
+**Recomendación: opción 1.** Es la única que mantiene un solo Libro, un solo motor y una calificación correcta. La regla de oro 7 existe para impedir que la app invente tipos por comodidad de implementación; aquí no se trata de comodidad, sino de una familia de operaciones que el catálogo de 2026 no contempló.
+
+> **Criterio del autor (16-08-2026): adoptada la opción 1.** Se crea el duodécimo tipo **LIQUIDACIÓN DE DERIVADO**, con estas propiedades en la Tabla 7: cuadra sí, alteración sí, abre lote sí (por el activo recibido), consume lote no, calificación = ganancia o pérdida patrimonial de la base del ahorro.
+>
+> El autor incorporará la fila correspondiente al manual por su cuenta; **la app va por delante**. Requisitos al implementarlo: actualizar la regla de oro 7 en `CLAUDE.md` para que diga doce, actualizar la tabla de DOMINIO.md §3.3, y añadir un golden test propio del tipo nuevo antes de tocar el motor.
 
 ---
 
@@ -379,12 +428,24 @@ Esto ya es un hueco del motor actual, y DeFi lo vuelve crítico porque en DeFi c
 
 Las reglas de DOMINIO.md §4 suman al coste o restan del valor de transmisión **solo cuando la comisión es en EUR**. El manual (U4.3) fija el criterio material: la comisión ligada a una transmisión forma parte de los gastos inherentes (arts. 35.1 y 35.2 LIRPF); la comisión de un simple traslado entre billeteras propias **no es deducible**.
 
-Cuando el gas se paga en ETH, hay **dos efectos simultáneos** que hoy no se computan:
+Cuando el gas se paga en ETH caben dos efectos posibles:
 
 1. Su contravalor en euros minora el valor de transmisión (o incrementa el de adquisición) de la operación a la que sirve.
-2. Entregar ese ETH es **en sí mismo una transmisión** que consume cola FIFO de ETH y genera su propia ganancia o pérdida patrimonial.
+2. Entregar ese ETH sería **en sí mismo una transmisión** que consume cola FIFO de ETH y genera su propia ganancia o pérdida patrimonial.
 
-Propuesta: normalizar toda comisión a EUR por su contravalor a fecha de la operación para el efecto (1), y generar automáticamente una pata **PAGO** por el efecto (2) cuando el activo de la comisión no sea EUR. Con una excepción coherente con el manual: si la comisión corresponde a un traslado entre ubicaciones propias, no hay gasto deducible, pero **sí sigue habiendo transmisión del ETH entregado**, luego el efecto (2) se mantiene y el (1) no.
+> **Criterio del autor (16-08-2026): el pago de gas en ETH NO se considera transmisión.** Se implementa el efecto (1) y **se descarta el efecto (2)**.
+
+Es una elección defendible y además la que evita convertir cada interacción en cadena en una micro-transmisión con su microganancia, que sería inmanejable y de rendimiento fiscal irrelevante. Pero tiene una consecuencia técnica que hay que resolver de forma expresa:
+
+**El ETH sí sale del monedero.** El saldo baja. Si además no se consume lote, la cola FIFO de ETH conservará más unidades de las que el titular tiene realmente, y esa divergencia crece con cada operación hasta romper la conciliación entre SALDOS y FIFO —que es justo lo que el CUADRE existe para detectar—.
+
+> **PENDIENTE DE CRITERIO DEL AUTOR.** Hay que elegir qué hace el motor con el lote correspondiente al ETH gastado en gas:
+>
+> - **(a) Consumir el lote sin resultado.** Se retira por su coste, con ganancia cero. SALDOS y FIFO siguen conciliados y no hay transmisión gravada. El coste retirado desaparece de la cartera.
+> - **(b) Consumir el lote y trasladar su coste.** Igual que (a), pero el coste FIFO del ETH gastado se incorpora al valor de adquisición (o minora el de transmisión) de la operación servida, en lugar del contravalor en euros del gas. Más coherente internamente; se aparta de la medición en euros del art. 35.
+> - **(c) No consumir lote.** Divergencia creciente entre saldo y cola. **Desaconsejada**: rompe el CUADRE.
+>
+> Bloquea la fase D0, y D0 bloquea todo lo demás.
 
 Conviene resolverlo antes que DeFi: afecta a la exactitud de todas las carteras con actividad en cadena.
 
@@ -396,9 +457,9 @@ Ocho supuestos de este documento carecen de criterio administrativo publicado:
 
 | Supuesto | Tesis por defecto | Alternativa |
 |---|---|---|
-| Recepción del LP token | Permuta (prudente) | Simple resguardo, sin alteración |
-| Neutralidad de la entrega en lending (prestamista) | Neutra | Transmisión onerosa (lectura estricta del art. 1753 CC) |
-| Recepción y devolución del principal (prestatario) | Abre y cierra lote (COMPRA/PAGO) | Neutralidad plena, sin efecto en FIFO |
+| Recepción del LP token | **Simple resguardo, sin alteración** (benévola) | Permuta del art. 37.1.h |
+| Neutralidad de la entrega en lending (prestamista) | Neutra, salvo ejecución de la garantía | Transmisión onerosa (lectura estricta del art. 1753 CC) |
+| Recepción y devolución del principal (prestatario) | **Sin decidir** | — |
 | Receipt tokens (aTokens, cTokens) | Permuta | Resguardo |
 | Rebase de valor vs. de cantidad | Según acredite tokens | — |
 | Vault autocompuesto de valor creciente | GP a la salida | RCM periódico |
@@ -421,17 +482,50 @@ Y una advertencia que el manual hace y conviene que la app repita: el **FIFO glo
 
 | Fase | Contenido | Criterio de aceptación |
 |---|---|---|
-| **D0** | Comisiones en cripto (§8) | Golden test nuevo: cartera con gas en ETH; el saldo y la GP cuadran con el cálculo manual |
+| **D0** | Comisiones en cripto (§8) — *bloqueada: falta el criterio del lote* | Golden test nuevo: cartera con gas en ETH; SALDOS y FIFO siguen conciliados |
 | **D1** | Campos `evento`, `posicionId`, `protocolo`, `criterioAplicado` + entidad `Posicion` + migración Dexie | Los 289 tests actuales siguen en verde |
-| **D2** | Familia A y B (staking y lending): las que tienen apoyo firme en V1766-22, V0612-26 y V0648-24 | Caso de ejemplo ampliado con staking y lending; cuadre verde |
-| **D3** | Familia C (pools): reparto proporcional, dos capas, bloqueo de la impermanent loss | Test del caso Álvaro del manual (1 ETH + 2.000 USDC, 150 € de comisiones) |
+| **D2** | Familia A y B1 (staking, lending del prestamista, ejecución de garantía) | Caso de ejemplo ampliado; cuadre verde. **B2 fuera hasta cerrar el criterio** |
+| **D3** | Familia C (pools) bajo tesis benévola — *bloqueada: falta la valoración del neto* | Test del ejemplo de §C6: la permuta neta es 5 ETH por 30.000 DAI |
 | **D4** | Detector del art. 33.5.e (§4.3) | Batería de casos límite: recompra a los 11 meses, a los 13, compra previa a la venta |
-| **D5** | Familias E, F, G + panel de zonas grises con recálculo comparativo | — |
-| **D6** | Derivados, **solo si se resuelve §7** | — |
+| **D5** | Familias E, F, G + panel de zonas grises con recálculo comparativo | Recálculo prudente/benévolo de una cartera con pools |
+| **D6** | 12.º tipo LIQUIDACIÓN DE DERIVADO (§7) | `CLAUDE.md` y DOMINIO.md §3.3 actualizados a doce tipos; golden test propio |
 
 ---
 
-## 11. Fuentes
+## 11. Registro de decisiones del autor
+
+Javier Bravezo Durán, autor del manual, 16 de agosto de 2026.
+
+| # | Cuestión | Decisión |
+|---|---|---|
+| 1 | Derivados por diferencias (§7) | **12.º tipo LIQUIDACIÓN DE DERIVADO.** La app va por delante; el manual se actualiza aparte |
+| 2 | Lending, prestamista (B1) | **Neutro, salvo ejecución de la garantía.** La adquisición del colateral es COMPRA a valor de mercado en la fecha de ejecución |
+| 3 | Entrada y salida de pool (C1/C3) | **Tesis benévola por defecto**, advirtiendo siempre de la existencia de la prudente y permitiendo el recálculo |
+| 4 | Gas pagado en cripto (§8) | **No es transmisión.** Solo el efecto sobre el valor de adquisición/transmisión |
+| 5 | Rebase de valor vs. de cantidad (A3) | Confirmada la propuesta |
+| 6 | Receipt tokens (aTokens, cTokens) | Permuta |
+| 7 | Wrapping (E1) | Permuta |
+| 8 | Bridge (E2) | Según identidad del activo |
+| 9 | Router / multihop (E4) | Una sola permuta, traza completa al Archivo |
+| 10 | Hard fork (E3) | Preguntar siempre |
+| 11 | Vault autocompuesto (C5) | GP a la salida |
+| 12 | Airdrop condicionado (F1) | Marcar y preguntar |
+| 13 | Locking / veTokens (G1) | TRANSFERENCIA + RENDIMIENTO |
+| 14 | Art. 33.5.e (§4.3) | Aplica a **unidades equivalentes**; **avisa, no bloquea** |
+| 15 | Reducción del 30 % del art. 26.2 (A1) | Se ofrece con aviso |
+| 16 | Ubicación del documento | Se implementa en la app; el manual lo actualiza el autor manualmente |
+
+**Abiertas, por orden de bloqueo:**
+
+| Cuestión | Dónde | Bloquea |
+|---|---|---|
+| Qué hace el motor con el lote del ETH gastado en gas | §8 | D0 → y D0 bloquea el resto |
+| Valoración de la permuta neta a la salida del pool: art. 37.1.h o precio efectivo | §C6 | D3 |
+| Lending, lado del prestatario: recepción y devolución del principal | B2 | D2 (parcial) |
+
+---
+
+## 12. Fuentes
 
 **Normativa** (verificada contra el texto consolidado del BOE el 16-08-2026): Ley 35/2006 (LIRPF), arts. 14.1.a, 14.2.k, 25.2, 26, 27.1, 33.1, 33.2, 33.5, 34, 35, 37.1.h, 37.1.l, 37.1.m, 43.1, 45, 46, 48. Código Civil, arts. 1740 y 1753. LGT, arts. 13, 15, 16, 89, 105, 106.
 
