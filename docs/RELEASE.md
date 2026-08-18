@@ -37,19 +37,26 @@ automáticamente al hacer `push` a `main` (ver `.github/workflows/deploy.yml`).
 > Nota: Lighthouse no se ejecuta en CI (requiere Chrome headless con flags); es una
 > comprobación manual del responsable antes de etiquetar.
 
-## Textos pendientes (no bloquean, pero conviene revisar)
+## Textos del manual y ficha «Acerca de» — CERRADOS (15-8-2026)
 
-- [ ] `{{TEXTO-MANUAL}}` de la guía y el módulo fiscal (docs/PENDIENTE_TEXTOS.md).
-- [ ] `TODO-REVISION` de las convenciones fiscales (registro de decisiones, D1 y D2 — validadas el 8-8-2026).
-- [ ] Autoría, licencia y repositorio en `src/ui/acerca/datosAcerca.ts`
-      (`{{AUTOR}}`, `{{LICENCIA}}`, `{{REPO-URL}}`).
+- [x] `{{TEXTO-MANUAL}}` de la guía y el módulo fiscal rellenados (6-8-2026;
+      inventario en docs/PENDIENTE_TEXTOS.md). Comprobación:
+      `grep -rn "TEXTO-MANUAL" src/` solo devuelve la definición de
+      `MARCADOR_TEXTO`/`MARCADOR_MANUAL` y comentarios.
+- [x] `TODO-REVISION` de las convenciones fiscales (registro de decisiones, D1 y D2 —
+      validadas el 8-8-2026). Comprobación: `grep -rn "TODO-REVISION" src/` vacío.
+- [x] Autoría, licencia, repositorio, web y contacto en `src/ui/acerca/datosAcerca.ts`
+      (15-8-2026). Ya no queda ningún marcador visible en la app.
+
+> Al abrir un ejercicio nuevo, recuerda añadir su `src/data/casillas-AAAA.ts` y
+> registrarlo en `CASILLAS_POR_EJERCICIO` (es lo único que caduca cada campaña).
 
 ## Etiquetar y desplegar
 
-1. [ ] Commit de la versión con mensaje en español (p. ej. `P8: pulido, PWA y v1.0`).
-2. [ ] Crear la etiqueta anotada:
+1. [ ] Commit de la versión con mensaje en español (p. ej. `v1.3.0: pantalla del CUADRE`).
+2. [ ] Crear la etiqueta anotada (usa la versión de `package.json`; hoy **1.3.0**):
    ```bash
-   git tag -a v1.0.0 -m "Libro Hespérides v1.0.0"
+   git tag -a v1.3.0 -m "Libro Hespérides v1.3.0"
    git push origin main --tags
    ```
 3. [ ] Verificar que GitHub Actions termina en verde y que Pages sirve la nueva versión.

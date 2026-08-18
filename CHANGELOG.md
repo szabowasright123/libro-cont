@@ -65,6 +65,21 @@ se vea con datos. El **motor** y los **golden tests** siguen intactos.
 - Textos actualizados en Inicio/Ajustes; e2e de Cartera adaptado a los nuevos valores
   (93.062,12 € con los precios de demostración).
 
+### Ficha «Acerca de» completada — sin marcadores
+
+- **Repositorio publicado:** `REPO_URL` apunta ya a
+  <https://github.com/szabowasright123/libro-cont>. Con ello desaparece el último marcador
+  visible de la app (`{{REPO-URL}}`).
+- **Web y contacto del autor:** nuevas filas «Web del autor»
+  (legelbitcoin.com · [@Javibrd](https://x.com/Javibrd)) y «Contacto» (javier@legel.es, para
+  consultas y licencias de uso profesional), con sus constantes `WEB`, `RED_SOCIAL`,
+  `RED_SOCIAL_ETIQUETA` y `CONTACTO` en `src/ui/acerca/datosAcerca.ts`. Si alguna es `null`,
+  la fila simplemente no se muestra.
+- **Estado de los textos del manual:** todas las ranuras `{{TEXTO-MANUAL}}` quedaron
+  rellenadas el 6-8-2026 y las convenciones D1/D2 validadas el 8-8-2026. No queda ningún
+  marcador pendiente en `src/` (las constantes `MARCADOR_TEXTO`/`MARCADOR_MANUAL` siguen
+  existiendo como respaldo para textos futuros).
+
 ## [1.1.0] — 2026-08-08
 
 Identidad visual propia, visión de cartera y onboarding con un clic (fase P9). El **motor**
@@ -158,9 +173,13 @@ los datos del alumno nunca salen de su navegador.
 - **Módulo fiscal** (orientativo): resumen anual por cajones reconciliado con el FIFO, mapa
   a casillas, avisos 721 y 172/173. Toda calificación fiscal queda como `{{TEXTO-MANUAL}}`.
 
-### Pendiente de validación (no bloquea la v1.0)
+### Pendiente de validación en su día (no bloqueaba la v1.0) — CERRADO
 
-- Convenciones fiscales marcadas `TODO-REVISION` (registro de decisiones, D1 y D2; validadas el 8-8-2026) y literales
+> Los dos puntos siguientes quedaron resueltos después: los literales del manual el
+> 6-8-2026, las convenciones D1/D2 el 8-8-2026 y la ficha «Acerca de» el 15-8-2026
+> (ver la entrada 1.3.0).
+
+- Convenciones fiscales marcadas `TODO-REVISION` (registro de decisiones, D1 y D2) y literales
   `{{TEXTO-MANUAL}}` (docs/PENDIENTE_TEXTOS.md): las revisa el responsable del taller.
 - Autoría, licencia y URL del repositorio en «Acerca de» (marcadores `{{AUTOR}}`,
   `{{LICENCIA}}`, `{{REPO-URL}}` en `src/ui/acerca/datosAcerca.ts`).

@@ -2,12 +2,40 @@
  * AcercaPage — «Acerca de» (P8): versión, autoría, licencia, repositorio y la
  * declaración de privacidad (local-first: los datos no salen del navegador).
  *
- * Autoría/licencia/repositorio se leen de `src/ui/acerca/datosAcerca.ts`; mientras
- * estén pendientes se muestran con un marcador visible.
+ * Autoría, licencia, repositorio, web y contacto se leen de `src/ui/acerca/datosAcerca.ts`;
+ * mientras estén pendientes se muestran con un marcador visible (o se omite la fila).
  */
 import type { ReactNode } from 'react'
 import { irA } from '../shell/rutas'
-import { AUTORIA, LICENCIA, LICENCIA_NOTA, REPO_URL, MARCO } from '../acerca/datosAcerca'
+import {
+  AUTORIA,
+  LICENCIA,
+  LICENCIA_NOTA,
+  REPO_URL,
+  WEB,
+  RED_SOCIAL,
+  RED_SOCIAL_ETIQUETA,
+  CONTACTO,
+  MARCO,
+} from '../acerca/datosAcerca'
+
+/** Clases comunes de los enlaces de la ficha. */
+const CLASES_ENLACE =
+  'text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-amber-400'
+
+/** Texto visible de una URL: sin protocolo ni barra final. */
+function textoEnlace(url: string) {
+  return url.replace(/^https?:\/\//, '').replace(/\/$/, '')
+}
+
+/** Enlace externo (se abre en pestaña nueva, sin filtrar el referer). */
+function EnlaceExterno({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={CLASES_ENLACE}>
+      {children}
+    </a>
+  )
+}
 
 /** Marcador visible para un dato pendiente de fijar. */
 function Marcador({ children }: { children: string }) {
@@ -67,20 +95,32 @@ export function AcercaPage() {
           </Dato>
           <Dato termino="Repositorio">
             {REPO_URL ? (
-              <a
-                href={REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-amber-400"
-              >
-                {REPO_URL}
-              </a>
+              <EnlaceExterno href={REPO_URL}>{textoEnlace(REPO_URL)}</EnlaceExterno>
             ) : (
               <span className="text-slate-500">
                 Pendiente de publicar <Marcador>{'{{REPO-URL}}'}</Marcador>
               </span>
             )}
           </Dato>
+          {WEB || RED_SOCIAL ? (
+            <Dato termino="Web del autor">
+              {WEB ? <EnlaceExterno href={WEB}>{textoEnlace(WEB)}</EnlaceExterno> : null}
+              {WEB && RED_SOCIAL ? <span className="text-slate-400"> · </span> : null}
+              {RED_SOCIAL ? (
+                <EnlaceExterno href={RED_SOCIAL}>
+                  {RED_SOCIAL_ETIQUETA || textoEnlace(RED_SOCIAL)}
+                </EnlaceExterno>
+              ) : null}
+            </Dato>
+          ) : null}
+          {CONTACTO ? (
+            <Dato termino="Contacto">
+              <a href={`mailto:${CONTACTO}`} className={CLASES_ENLACE}>
+                {CONTACTO}
+              </a>
+              <span className="text-slate-500"> · consultas y licencias de uso profesional</span>
+            </Dato>
+          ) : null}
         </dl>
       </section>
 
