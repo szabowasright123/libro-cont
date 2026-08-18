@@ -184,6 +184,24 @@ export class LibroDB extends Dexie {
       precios: 'activo',
       posiciones: 'id, protocolo, tipoPosicion, estado',
     })
+
+    // ── Esquema v9 (ENCARGO Parte 2, importación desde exploradores): las ubicaciones
+    //    guardan sus DIRECCIONES on-chain. Se indexan con índice multiEntry (`*direcciones`)
+    //    porque la consulta natural de la importación es la inversa —«¿de quién es esta
+    //    dirección?»— una vez por cada movimiento del CSV.
+    //
+    //    El campo es opcional y no altera ningún cálculo: las ubicaciones anteriores quedan
+    //    válidas sin tocarlas (Dexie no indexa las que no tienen el array), así que esta
+    //    versión NO necesita migración de datos.
+    this.version(9).stores({
+      apuntes: 'uid, id, fechaHora, tipo, activoEntrada, activoSalida, posicionId',
+      ubicaciones: 'id, nombre, kyc, *direcciones',
+      justificantes: 'id, apunteUid, rutaConvencional',
+      activos: 'simbolo',
+      parametros: 'clave',
+      precios: 'activo',
+      posiciones: 'id, protocolo, tipoPosicion, estado',
+    })
   }
 }
 

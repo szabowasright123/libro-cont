@@ -10,6 +10,33 @@
       content="Libro Hespérides: Libro contable y Archivo probatorio del Taller de Contabilidad, Trazabilidad y Fiscalidad en Bitcoin. App local-first." />
     <!-- El link del manifiesto lo inyecta vite-plugin-pwa en el build. -->
     <title>Libro Hespérides</title>
+    <!--
+      TEMA ANTES DEL PRIMER PINTADO.
+
+      Aplica la preferencia guardada (claro / oscuro / sistema) antes de que el navegador
+      pinte nada, para que arrancar en oscuro no dé un destello blanco. Va en línea y sin
+      dependencias a propósito: cualquier módulo llegaría tarde. La lógica «de verdad» vive
+      en `src/ui/tema.ts`; esto es solo su reflejo mínimo, con la misma clave.
+    -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('hesperides.tema')
+          var oscuro =
+            t === 'oscuro' ||
+            (t !== 'claro' &&
+              typeof matchMedia === 'function' &&
+              matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', oscuro)
+          document.documentElement.style.colorScheme = oscuro ? 'dark' : 'light'
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute('content', oscuro ? '#020617' : '#fafaf9')
+        } catch (e) {
+          /* Sin localStorage (modo privado): se queda el tema claro por defecto. */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

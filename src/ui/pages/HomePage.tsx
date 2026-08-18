@@ -149,9 +149,14 @@ export function HomePage() {
           Taller de <span className="text-brand-500">₿</span>itcoin 2026
         </p>
         <h1 className="text-3xl font-bold tracking-tight text-stone-900">Libro Hespérides</h1>
+        <p className="text-sm font-medium text-stone-500">
+          Modelo: Local-first: tus datos no salen de tu navegador.
+        </p>
         <p className="text-stone-600">
-          El Libro (diario contable con saldos, FIFO y cuadre) y el Archivo probatorio.
-          Local-first: tus datos no salen de tu navegador.
+          Reconstruye la historia de tu patrimonio digital. Desde su entrada hasta su saldo
+          actual, Libro Hespérides te permite registrar cada operación, seguir su origen,
+          aplicar FIFO, cuadrar tus posiciones y conservar las pruebas que explican cada
+          movimiento. Todo ello de forma local, sin sacar tus datos del navegador.
         </p>
       </header>
 
@@ -188,30 +193,6 @@ export function HomePage() {
         </Banner>
       )}
 
-      <section
-        aria-live="polite"
-        className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
-      >
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-stone-500">Base de datos local</dt>
-            <dd className="font-mono">
-              {estado.fase === 'abriendo' && <span className="text-stone-400">abriendo…</span>}
-              {estado.fase === 'ok' && (
-                <span className="text-semaforo-ok">● abierta · v{estado.version}</span>
-              )}
-              {estado.fase === 'error' && (
-                <span className="text-semaforo-error">● error: {estado.mensaje}</span>
-              )}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-stone-500">Catálogo de tipos</dt>
-            <dd className="font-mono text-stone-700">{TIPOS_OPERACION.length} tipos</dd>
-          </div>
-        </dl>
-      </section>
-
       {/* Guía integrada: el flujo del taller como recorrido clicable. */}
       <section aria-labelledby="flujo-titulo" className="space-y-3">
         <div>
@@ -234,7 +215,7 @@ export function HomePage() {
                 >
                   <span
                     aria-hidden="true"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 dark:bg-brand-500/25"
                   >
                     {i + 1}
                   </span>
@@ -261,6 +242,30 @@ export function HomePage() {
             )
           })}
         </ol>
+      </section>
+
+      <section
+        aria-live="polite"
+        className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+      >
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-stone-500">Base de datos local</dt>
+            <dd className="font-mono">
+              {estado.fase === 'abriendo' && <span className="text-stone-400">abriendo…</span>}
+              {estado.fase === 'ok' && (
+                <span className="text-semaforo-ok">● abierta · v{estado.version}</span>
+              )}
+              {estado.fase === 'error' && (
+                <span className="text-semaforo-error">● error: {estado.mensaje}</span>
+              )}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-stone-500">Catálogo de tipos</dt>
+            <dd className="font-mono text-stone-700">{TIPOS_OPERACION.length} tipos</dd>
+          </div>
+        </dl>
       </section>
 
       <p className="text-center text-xs text-stone-400">

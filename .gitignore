@@ -54,3 +54,6 @@ docs/DECISIONES.md
 
 # --- Material del taller (no público) ---
 docs/reference/PLANTILLA_TALLER.xlsx
+
+# Copias de seguridad locales
+*.bak

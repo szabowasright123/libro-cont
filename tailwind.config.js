@@ -1,6 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // El tema es una ELECCIÓN del alumno, no solo la preferencia del sistema: las variantes
+  // `dark:` se activan con la clase `dark` en <html>, que gobierna `src/ui/tema.ts`.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

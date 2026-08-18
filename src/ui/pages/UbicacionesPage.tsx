@@ -10,6 +10,7 @@ import type { TipoUbicacion, Ubicacion } from '../../engine/types'
 import { UBICACION_EXTERIOR } from '../../engine/types'
 import { VIAS_EVIDENCIA, viaEvidencia } from '../../engine/trazabilidad'
 import { sugerir721, NOTA_CRITERIO_721, NOTA_AUTOCUSTODIA_721 } from '../../data/entidades-721'
+import { parsearDirecciones, pareceDireccionEvm } from '../../data/import/direcciones'
 import {
   listarUbicaciones,
   crearUbicacion,
@@ -41,6 +42,8 @@ interface FormUbic {
   extranjero: boolean
   pais: string
   autocustodia: boolean
+  /** Direcciones on-chain, una por línea (texto libre; se normaliza al guardar). */
+  direcciones: string
 }
 
 const FORM_VACIO: FormUbic = {
@@ -55,6 +58,7 @@ const FORM_VACIO: FormUbic = {
   extranjero: false,
   pais: '',
   autocustodia: false,
+  direcciones: '',
 }
 
 export function UbicacionesPage() {
@@ -90,6 +94,7 @@ export function UbicacionesPage() {
       extranjero: u.extranjero ?? false,
       pais: u.pais ?? '',
       autocustodia: u.autocustodia ?? false,
+      direcciones: (u.direcciones ?? []).join('\n'),
     })
     setError(null)
     setAbierto(true)
@@ -115,6 +120,9 @@ export function UbicacionesPage() {
       extranjero: form.autocustodia ? false : form.extranjero,
       pais: !form.autocustodia && form.extranjero && form.pais.trim() ? form.pais.trim() : undefined,
       autocustodia: form.autocustodia,
+      // Direcciones on-chain: se normalizan y deduplican al guardar. Siempre explícito
+      // (como `extranjero`): vaciar el campo debe borrar las que hubiera.
+      direcciones: parsearDirecciones(form.direcciones),
     }
     try {
       if (editando) {
@@ -184,6 +192,7 @@ export function UbicacionesPage() {
               <th className="px-3 py-2 font-medium">KYC</th>
               <th className="px-3 py-2 font-medium">Extranjero</th>
               <th className="px-3 py-2 font-medium">Vía / evidencia</th>
+              <th className="px-3 py-2 font-medium">Direcciones</th>
               <th className="px-3 py-2 font-medium">Alta</th>
               <th className="px-3 py-2 font-medium">Cierre</th>
               <th className="px-3 py-2 font-medium">Notas</th>
@@ -229,6 +238,16 @@ export function UbicacionesPage() {
                 <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
                   {viaEvidencia(u.viaEvidencia)?.etiqueta ?? <span className="text-slate-400">—</span>}
                 </td>
+                <td
+                  className="px-3 py-2 text-slate-600 dark:text-slate-300"
+                  title={(u.direcciones ?? []).join('\n')}
+                >
+                  {(u.direcciones?.length ?? 0) > 0 ? (
+                    <span className="tabular-nums">{u.direcciones!.length}</span>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 tabular-nums">{fmtFecha(u.fechaAlta)}</td>
                 <td className="px-3 py-2 tabular-nums">{u.fechaCierre ? fmtFecha(u.fechaCierre) : '—'}</td>
                 <td className="max-w-[16rem] truncate px-3 py-2 text-slate-500" title={u.notas}>
@@ -247,7 +266,7 @@ export function UbicacionesPage() {
 
             {filas.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-slate-400">
+                <td colSpan={10} className="px-3 py-6 text-center text-slate-400">
                   Aún no hay ubicaciones. Crea la primera (p. ej. tu exchange).
                 </td>
               </tr>
@@ -465,6 +484,43 @@ export function UbicacionesPage() {
                 <p className="mt-1 italic text-slate-400">{viaEvidencia(form.viaEvidencia)!.cita}</p>
               </div>
             )}
+
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Direcciones on-chain</span>
+              <textarea
+                className={INPUT + ' font-mono text-xs'}
+                rows={3}
+                placeholder={'Una por línea:\n0x1234…\nbc1q…'}
+                value={form.direcciones}
+                onChange={(e) => setForm({ ...form, direcciones: e.target.value })}
+              />
+            </label>
+            <p className="-mt-1 text-xs text-stone-500 dark:text-slate-400">
+              Sirven para la <strong>importación desde exploradores</strong>: si el origen y el
+              destino de un movimiento son direcciones tuyas, la app propone TRANSFERENCIA
+              (traslado, sin efecto fiscal). Si solo consta una, hay frontera con el exterior y
+              la calificación la pones tú. Se quedan en tu navegador: la app no consulta ninguna
+              cadena.
+              {(() => {
+                const ds = parsearDirecciones(form.direcciones)
+                const raras = ds.filter((d) => d.startsWith('0x') && !pareceDireccionEvm(d))
+                if (ds.length === 0) return null
+                return (
+                  <>
+                    {' '}
+                    <span className="font-medium">
+                      {ds.length} dirección{ds.length === 1 ? '' : 'es'} reconocida
+                      {ds.length === 1 ? '' : 's'}.
+                    </span>
+                    {raras.length > 0 && (
+                      <span className="text-amber-700 dark:text-amber-300">
+                        {' '}Revisa {raras.length}: empieza(n) por 0x pero no tiene(n) 40 dígitos.
+                      </span>
+                    )}
+                  </>
+                )
+              })()}
+            </p>
 
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Notas de evidencia</span>

@@ -26,8 +26,30 @@ async function descartarAvisoPwa(page: Page) {
   await cerrar.click({ timeout: 8000 }).catch(() => {})
 }
 
+/**
+ * Navega a una sección. Desde la reestructuración de la cabecera (ENCARGO, Parte 1) hay
+ * SIETE pestañas principales y algunas secciones son subapartados: se llega a ellas por la
+ * pestaña que las agrupa y luego por su pestaña secundaria.
+ */
+const SUBAPARTADO_DE: Record<string, string> = {
+  Posiciones: 'Cartera',
+  Ubicaciones: 'Ajustes',
+  'Parámetros': 'Ajustes',
+  'Importar cadena': 'Ajustes',
+}
+
 async function irA(page: Page, seccion: string) {
-  await page.getByRole('navigation', { name: 'Secciones' }).getByRole('button', { name: seccion, exact: true }).click()
+  const padre = SUBAPARTADO_DE[seccion]
+  await page
+    .getByRole('navigation', { name: 'Secciones' })
+    .getByRole('button', { name: padre ?? seccion, exact: true })
+    .click()
+  if (padre) {
+    await page
+      .getByRole('navigation', { name: 'Apartados' })
+      .getByRole('button', { name: seccion, exact: true })
+      .click()
+  }
 }
 
 /** Crea una ubicación de tipo exchange con KYC. */
@@ -176,7 +198,7 @@ test('ciclo XLSX: exportar, borrar e importar reproduce los mismos apuntes', asy
   expect(despues).toEqual(antes)
 })
 
-test('teclado en el Diario: flechas navegan a través de la virtualización y Enter edita', async ({ page }) => {
+test('teclado en el Diario: flechas navegan a través de la virtualización y Enter abre la ficha', async ({ page }) => {
   aceptarDialogos(page)
   // Activa las herramientas de desarrollo antes de cargar la app.
   await page.addInitScript(() => localStorage.setItem('hesperides.dev', '1'))
@@ -193,7 +215,12 @@ test('teclado en el Diario: flechas navegan a través de la virtualización y En
   await irA(page, 'Diario')
   const filas = page.locator('tr[data-fila]')
   await expect(filas.first()).toBeVisible()
+
+  // Pinchar una fila abre su ficha; al cerrarla, el foco vuelve a la fila y el teclado sigue.
   await filas.first().click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toBeHidden()
 
   // 40 pulsaciones de ↓ deben llevar la fila activa a la 40 (más allá de la ventana inicial).
   for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowDown')
@@ -201,9 +228,13 @@ test('teclado en el Diario: flechas navegan a través de la virtualización y En
   await expect(activa).toHaveCount(1)
   await expect(activa).toHaveAttribute('data-fila', '40')
 
-  // Enter abre la edición de la fila activa; Esc la cierra.
+  // Enter abre la ficha de la fila activa, con sus cuatro acciones; Esc la cierra.
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog')).toBeVisible()
+  const ficha = page.getByRole('dialog')
+  await expect(ficha).toBeVisible()
+  for (const accion of ['Editar', 'Duplicar', 'Rectificar', 'Borrar']) {
+    await expect(ficha.getByRole('button', { name: accion, exact: true })).toBeVisible()
+  }
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toBeHidden()
 })

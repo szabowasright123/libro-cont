@@ -4,7 +4,9 @@
  * Local-first: todo ocurre en el navegador. Cuatro bloques:
  *  1. Excel: importar la PLANTILLA_TALLER.xlsx y exportar el Libro a esa misma plantilla
  *     (que se recalcula sola: SALDOS/FIFO/CUADRE coinciden con la app).
- *  2. CSV genérico del taller: importar mini_caso_generico.csv y formatos afines.
+ *  2. CSV genérico del taller: importar mini_caso_generico.csv y formatos afines. (Los CSV de
+ *     exploradores de bloques van a su propio apartado, «Importar cadena», que AÑADE en vez de
+ *     reemplazar: ver ImportarPage.)
  *  3. Copia JSON nativa: descargar copia completa y restaurarla.
  *  4. Zona peligrosa: borrado total con doble confirmación.
  *
@@ -35,6 +37,7 @@ import {
   registrarCopiaRealizada,
 } from '../../data/repositorio'
 import { estadoAlmacenamientoPersistente } from '../../data/db'
+import { irA } from '../shell/rutas'
 import { useLiveQuery } from '../../data/useLiveQuery'
 import { fmtBytes, fmtFecha } from '../formato'
 import { importarXlsx } from '../../data/import/xlsx-import'
@@ -50,6 +53,7 @@ import { exportarJson, parsearSnapshot, ErrorRestauracion } from '../../data/imp
 import type { Ubicacion } from '../../engine/types'
 import { UnidadManual } from '../guia/UnidadManual'
 import { generarApuntesSinteticos, UBICACIONES_DEMO } from '../../data/dev/generarDataset'
+import { SelectorTema } from '../tema-ui'
 
 /**
  * Visibilidad de las herramientas de desarrollo. Ocultas para el alumno: solo en
@@ -109,6 +113,7 @@ export function AjustesPage() {
         </Banner>
       )}
 
+      <SeccionApariencia />
       <SeccionAlmacenamiento />
       <SeccionCasoDemo accion={accion} ocupado={ocupado} aviso={aviso} />
       <SeccionExcel accion={accion} ocupado={ocupado} setInforme={setInforme} aviso={aviso} />
@@ -289,6 +294,21 @@ function BotonArchivo({
 
 // ── 0 · Almacenamiento local (Archivo probatorio) ──────────────────────────
 
+/**
+ * Tema visual. No toca los datos del Libro: es una preferencia de este navegador, guardada
+ * en `localStorage` (ver `src/ui/tema.ts`). El interruptor rápido está en la cabecera.
+ */
+function SeccionApariencia() {
+  return (
+    <Seccion
+      titulo="Apariencia"
+      desc="Elige el tema de la interfaz. El interruptor rápido claro/oscuro está siempre en la cabecera, junto al número de versión."
+    >
+      <SelectorTema />
+    </Seccion>
+  )
+}
+
 function SeccionAlmacenamiento() {
   const resumen = useLiveQuery(
     async () => {
@@ -412,6 +432,17 @@ function SeccionCsv({ accion, ocupado, setInforme, aviso }: Props) {
       <BotonArchivo accept=".csv,text/csv" onArchivo={importar} disabled={ocupado}>
         Importar CSV…
       </BotonArchivo>
+      <p className="w-full text-xs text-slate-500">
+        ¿Vienes de un explorador de bloques (Etherscan, BscScan…)? Esos CSV van al apartado{' '}
+        <button
+          type="button"
+          className="underline underline-offset-2"
+          onClick={() => irA('importar')}
+        >
+          Importar cadena
+        </button>
+        : ahí no se reemplaza el Libro, se AÑADE, y cada movimiento pasa por tu confirmación.
+      </p>
     </Seccion>
   )
 }
@@ -436,6 +467,21 @@ function SeccionCopia({ accion, ocupado, aviso }: Props) {
   const descargar = () =>
     accion(async () => {
       const snap = await snapshotActual()
+      // Dato SENSIBLE (ENCARGO, Parte 2): la copia incluye las direcciones on-chain de las
+      // ubicaciones —por defecto sí, porque una copia debe restaurar el Libro completo—, y
+      // una dirección revela todo el historial de la cadena. Se avisa antes de descargar.
+      const nDirecciones = snap.ubicaciones.reduce((n, u) => n + (u.direcciones?.length ?? 0), 0)
+      if (nDirecciones > 0) {
+        const seguir = window.confirm(
+          `La copia incluye ${nDirecciones} dirección(es) on-chain de tus ubicaciones. ` +
+            'Una dirección permite reconstruir todo tu historial en la cadena: guarda el fichero ' +
+            'como guardarías un extracto bancario. ¿Descargar?',
+        )
+        if (!seguir) {
+          aviso('info', 'Copia cancelada.')
+          return
+        }
+      }
       const fecha = new Date().toISOString().slice(0, 10)
       descargarTexto(`libro-hesperides-copia-${fecha}.json`, exportarJson({ ...snap, exportadoEn: new Date().toISOString() }))
       // Registra la marca: alimenta el recordatorio suave de copia (P11).
@@ -470,6 +516,10 @@ function SeccionCopia({ accion, ocupado, aviso }: Props) {
         Restaurar copia…
       </BotonArchivo>
       <div className="w-full space-y-0.5 text-xs text-slate-500">
+        <p>
+          Incluye también las <strong>direcciones on-chain</strong> de tus ubicaciones (dato
+          sensible): se avisa al descargar.
+        </p>
         <p>
           {marca.ultimaCopiaEn
             ? `Última copia descargada: ${fmtFecha(marca.ultimaCopiaEn)} (${marca.apuntesEnUltimaCopia ?? 0} apuntes).`

@@ -3,6 +3,22 @@
 Encargo de trabajo para ejecutar con Claude Code en local. Criterio fijado por el autor el
 16-08-2026; lo que sigue es implementación, no decisión doctrinal.
 
+> **ESTADO: EJECUTADO (18-08-2026).** Parte 1 y Parte 2 completas, en los cinco pasos del orden
+> sugerido. `npm test` 414 verdes (46 golden intactos), `npm run test:e2e` 6 verdes y
+> `npm run build` en verde. Ficheros nuevos: `src/data/import/direcciones.ts`,
+> `explorador.ts`, `triaje.ts` (con sus tests), `src/ui/pages/ImportarPage.tsx`,
+> `src/data/altaAditiva.test.ts` y `tests/e2e/importar-explorador.spec.ts`. Cambios de esquema:
+> Dexie **v9** (índice multiEntry `*direcciones` en ubicaciones). Detalle en el CHANGELOG.
+>
+> **Decisión pendiente resuelta por defecto:** las direcciones **SÍ viajan** en la copia JSON
+> (la copia debe restaurar el Libro completo), y la descarga avisa de que son dato sensible,
+> tal como preveía el encargo. Si el autor prefiere excluirlas, el cambio es de una línea en
+> `snapshotActual`.
+>
+> **Queda por confirmar contra una exportación REAL** (lo pedía el propio encargo): las
+> cabeceras de las exportaciones **ERC-20** e **internas**. El lector las empareja de forma
+> tolerante (alias + casación por prefijo) y avisa en vez de romper, pero conviene cotejarlas.
+
 Fuentes de verdad: `CLAUDE.md` (reglas de oro), `docs/reference/DOMINIO.md`,
 `docs/DEFI_EVENTOS_COMPLEJOS.md`.
 

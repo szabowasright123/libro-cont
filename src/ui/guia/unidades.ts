@@ -59,6 +59,15 @@ export const UNIDADES_MANUAL: Partial<Record<Ruta, UnidadManual>> = {
     texto:
       '«Si las dos primeras partes se han hecho bien, el IRPF es un trámite de traslado. La teoría fiscal vive en el manual de Fiscalidad en Bitcoin, al que se remite; aquí está el gesto práctico: qué salida del registro va a qué apartado de Renta WEB, cómo se concilia el registro propio con lo que la AEAT ya sabe por terceros, y cómo se cierra y archiva un ejercicio.» «Los números de casilla y las pantallas cambian cada campaña. […] Los apartados y la lógica, qué renta va a qué base, cambian rara vez y con ley.» — [MT] Parte III, introducción.',
   },
+  importar: {
+    clave: 'manual.importar',
+    bloque: 'Bloque 1 · Trazabilidad',
+    pista:
+      'Un explorador da movimientos, no operaciones: la cadena no sabe si un envío es traslado o transmisión. Lo decides tú.',
+    // Pendiente del literal del manual (U3.3, «la fuente más frecuente de errores en la
+    // contabilidad de carteras»): ver docs/PENDIENTE_TEXTOS.md §4.
+    texto: '',
+  },
   ubicaciones: {
     clave: 'manual.ubicaciones',
     bloque: 'Bloque 1 · Ubicaciones',

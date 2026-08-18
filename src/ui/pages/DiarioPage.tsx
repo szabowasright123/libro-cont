@@ -1,7 +1,12 @@
 /**
  * DiarioPage — el DIARIO: tabla densa de apuntes (TanStack), en orden cronológico,
  * con buscador y filtros por tipo/ubicación/activo/año. Numeración automática
- * AAAA-NNN (la asigna el repositorio). Alta, edición, duplicado y borrado de apuntes.
+ * AAAA-NNN (la asigna el repositorio).
+ *
+ * La tabla es SOLO lectura y cabe a lo ancho sin desplazamiento lateral: las notas y
+ * los botones de acción no ocupan columna. Pinchar (o pulsar Enter sobre) un apunte abre
+ * su ficha, y es ahí donde viven las notas completas y las cuatro acciones: editar,
+ * duplicar, rectificar y borrar.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -27,7 +32,7 @@ import {
 } from '../../data/repositorio'
 import { useLiveQuery } from '../../data/useLiveQuery'
 import { fmtDecimal, fmtEuro, fmtFechaHora } from '../formato'
-import { BTN_PRIMARIO, BTN_SEC, BTN_PELIGRO, INPUT, KBD, Banner } from '../comp'
+import { BTN_PRIMARIO, BTN_SEC, BTN_PELIGRO, INPUT, KBD, Banner, Modal } from '../comp'
 import { FormularioApunte, type AperturaFormulario } from '../libro/FormularioApunte'
 import { PLANTILLAS, type PlantillaRapida } from '../libro/plantillas'
 import { ChipZonaGris } from '../defi/ChipZonaGris'
@@ -49,6 +54,8 @@ interface FilaDiario {
   faltantesProbatorios: string
   /** Sello de origen: KYC de la ubicación relevante (null si no aplica). */
   origenKyc: boolean | null
+  /** Correlativo del apunte rectificado (solo AJUSTE); `undefined` si no rectifica. */
+  rectificaA?: string
 }
 
 /** Convierte un registro almacenado en borrador editable del formulario. */
@@ -58,6 +65,28 @@ function registroABorrador(r: ApunteRegistro): BorradorApunte {
 }
 
 const col = createColumnHelper<FilaDiario>()
+
+/**
+ * Reparto del ancho de la tabla, en porcentaje (suma 100). Con `table-fixed` estas
+ * anchuras MANDAN sobre el contenido: la tabla cabe siempre en su contenedor y ninguna
+ * cabecera larga («Estado probatorio») empuja al resto. Lo que no entra se recorta con
+ * puntos suspensivos —el valor completo está en la ficha del apunte, a un clic—, y como
+ * ninguna celda parte en dos líneas todas las filas conservan la misma altura, que es de
+ * lo que depende el virtualizador.
+ */
+const ANCHO_COLUMNA: Record<string, string> = {
+  id: '6.5%',
+  fecha: '13%',
+  tipo: '13.5%',
+  sello: '3.5%',
+  origen: '8%',
+  destino: '8%',
+  salida: '11%',
+  entrada: '11%',
+  comision: '8.5%',
+  contravalor: '7.5%',
+  probatorio: '9.5%',
+}
 
 export function DiarioPage() {
   const registrosQ = useLiveQuery(listarRegistros, [])
@@ -78,6 +107,9 @@ export function DiarioPage() {
 
   const [apertura, setApertura] = useState<AperturaFormulario | null>(null)
   const [formAbierto, setFormAbierto] = useState(false)
+  // Ficha del apunte: se abre al pinchar una fila y reúne las notas y las acciones.
+  // Guarda la FILA (no el registro) para reutilizar los valores ya presentados.
+  const [detalle, setDetalle] = useState<FilaDiario | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -100,6 +132,10 @@ export function DiarioPage() {
 
   const kyc = useMemo(() => mapaKyc(ubicaciones), [ubicaciones])
 
+  // El registro guarda la referencia por `uid` (estable frente a la renumeración); para
+  // enseñarla hay que resolverla al correlativo AAAA-NNN de ese momento.
+  const idPorUid = useMemo(() => new Map(registros.map((r) => [r.uid, r.id])), [registros])
+
   // Filas presentadas.
   const filas: FilaDiario[] = useMemo(
     () =>
@@ -120,10 +156,11 @@ export function DiarioPage() {
           estadoProbatorio: est?.estado ?? 'sin-justificar',
           faltantesProbatorios: est?.faltantes.map((f) => f.documento).join(', ') ?? '',
           origenKyc: sello.aplica ? sello.kyc : null,
+          rectificaA: r.rectificaAUid ? idPorUid.get(r.rectificaAUid) : undefined,
         }
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [registros, nombrePorId, estadosProbatorios, kyc],
+    [registros, nombrePorId, estadosProbatorios, kyc, idPorUid],
   )
 
   const anios = useMemo(
@@ -175,17 +212,21 @@ export function DiarioPage() {
       col.accessor((f) => f.registro.fechaHora, {
         id: 'fecha',
         header: 'Fecha',
-        cell: (c) => <span className="whitespace-nowrap tabular-nums">{fmtFechaHora(c.getValue())}</span>,
+        cell: (c) => <span className="tabular-nums">{fmtFechaHora(c.getValue())}</span>,
       }),
       col.accessor((f) => f.registro.tipo, {
         id: 'tipo',
         header: 'Tipo',
         cell: (c) => (
-          <span className="flex items-center gap-1.5 whitespace-nowrap">
-            <span className="font-medium">{ETIQUETA_TIPO[c.getValue() as TipoOperacion]}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="truncate font-medium" title={ETIQUETA_TIPO[c.getValue() as TipoOperacion]}>
+              {ETIQUETA_TIPO[c.getValue() as TipoOperacion]}
+            </span>
             {/* Distintivo de zona gris (DEFI §9): un apunte apoyado en una tesis fundada
                 pero no confirmada no debe verse igual que uno resuelto. */}
-            <ChipZonaGris apunte={c.row.original.registro} />
+            <span className="shrink-0">
+              <ChipZonaGris apunte={c.row.original.registro} />
+            </span>
           </span>
         ),
       }),
@@ -201,24 +242,15 @@ export function DiarioPage() {
           )
         },
       }),
-      col.accessor('origen', { header: 'Origen', cell: (c) => <span className="whitespace-nowrap">{c.getValue()}</span> }),
-      col.accessor('destino', { header: 'Destino', cell: (c) => <span className="whitespace-nowrap">{c.getValue()}</span> }),
-      col.accessor('salida', { header: 'Salida', cell: (c) => <span className="whitespace-nowrap tabular-nums">{c.getValue()}</span> }),
-      col.accessor('entrada', { header: 'Entrada', cell: (c) => <span className="whitespace-nowrap tabular-nums">{c.getValue()}</span> }),
-      col.accessor('comision', { header: 'Comisión', cell: (c) => <span className="whitespace-nowrap tabular-nums">{c.getValue()}</span> }),
+      col.accessor('origen', { header: 'Origen', cell: (c) => <span title={c.getValue()}>{c.getValue()}</span> }),
+      col.accessor('destino', { header: 'Destino', cell: (c) => <span title={c.getValue()}>{c.getValue()}</span> }),
+      col.accessor('salida', { header: 'Salida', cell: (c) => <span className="tabular-nums" title={c.getValue()}>{c.getValue()}</span> }),
+      col.accessor('entrada', { header: 'Entrada', cell: (c) => <span className="tabular-nums" title={c.getValue()}>{c.getValue()}</span> }),
+      col.accessor('comision', { header: 'Comisión', cell: (c) => <span className="tabular-nums" title={c.getValue()}>{c.getValue()}</span> }),
       col.accessor((f) => f.registro.contravalorEUR, {
         id: 'contravalor',
         header: 'Contravalor',
-        cell: (c) => <span className="whitespace-nowrap tabular-nums">{fmtEuro(c.getValue())}</span>,
-      }),
-      col.accessor((f) => f.registro.notas, {
-        id: 'notas',
-        header: 'Notas',
-        cell: (c) => (
-          <span className="block max-w-[14rem] truncate text-slate-500" title={c.getValue() ?? ''}>
-            {c.getValue() ?? '—'}
-          </span>
-        ),
+        cell: (c) => <span className="tabular-nums">{fmtEuro(c.getValue())}</span>,
       }),
       col.accessor('estadoProbatorio', {
         id: 'probatorio',
@@ -229,26 +261,6 @@ export function DiarioPage() {
             titulo={c.row.original.faltantesProbatorios ? `Falta: ${c.row.original.faltantesProbatorios}` : undefined}
           />
         ),
-      }),
-      col.display({
-        id: 'acciones',
-        header: () => <span className="sr-only">Acciones</span>,
-        cell: (c) => {
-          const r = c.row.original.registro
-          return (
-            <div className="flex justify-end gap-1 whitespace-nowrap">
-              <button type="button" className={BTN_SEC} onClick={() => abrirEdicion(r)}>
-                Editar
-              </button>
-              <button type="button" className={BTN_SEC} onClick={() => abrirDuplicado(r)}>
-                Duplicar
-              </button>
-              <button type="button" className={BTN_PELIGRO} onClick={() => borrar(r)}>
-                Borrar
-              </button>
-            </div>
-          )
-        },
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -268,7 +280,8 @@ export function DiarioPage() {
   const virtualizador = useVirtualizer({
     count: filasTabla.length,
     getScrollElement: () => contenedorRef.current,
-    estimateSize: () => 37,
+    // Altura real de la fila con el relleno actual: sin botones dentro, la fila encoge.
+    estimateSize: () => 35,
     overscan: 12,
   })
   const itemsVirtuales = virtualizador.getVirtualItems()
@@ -288,6 +301,13 @@ export function DiarioPage() {
   useEffect(() => {
     setFilaActiva((prev) => (prev >= filasTabla.length ? filasTabla.length - 1 : prev))
   }, [filasTabla.length])
+
+  /** Devuelve el foco a una fila concreta (si está pintada). */
+  const enfocarFila = useCallback((indice: number) => {
+    contenedorRef.current
+      ?.querySelector<HTMLTableRowElement>(`tr[data-fila="${indice}"]`)
+      ?.focus()
+  }, [])
 
   useEffect(() => {
     if (!enfocarPendiente.current || filaActiva < 0) return
@@ -325,6 +345,9 @@ export function DiarioPage() {
   )
 
   const onTeclaTabla = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Con una ventana abierta manda ella: Escape debe cerrarla, no deseleccionar la fila
+    // que quedó debajo (y las flechas no deben mover nada mientras tanto).
+    if (detalle || formAbierto || asistenteDefi) return
     const objetivo = e.target as HTMLElement
     switch (e.key) {
       case 'ArrowDown':
@@ -344,11 +367,11 @@ export function DiarioPage() {
         irAExtremo('fin')
         break
       case 'Enter':
-        // Enter sobre la fila (no sobre un botón de acción) abre la edición.
+        // Enter sobre la fila abre su ficha (mismo gesto que pinchar).
         if (objetivo.tagName === 'TR' && filaActiva >= 0) {
           e.preventDefault()
           const fila = filasTabla[filaActiva]
-          if (fila) abrirEdicion(fila.original.registro)
+          if (fila) setDetalle(fila.original)
         }
         break
       case 'Escape':
@@ -368,11 +391,33 @@ export function DiarioPage() {
     setFormAbierto(true)
   }
   const abrirEdicion = (r: ApunteRegistro) => {
+    setDetalle(null)
     setApertura({ borrador: registroABorrador(r), uid: r.uid, titulo: `Editar ${r.id}` })
     setFormAbierto(true)
   }
   const abrirDuplicado = (r: ApunteRegistro) => {
+    setDetalle(null)
     setApertura({ borrador: duplicarComoBorrador(r), titulo: `Duplicar ${r.id}` })
+    setFormAbierto(true)
+  }
+  /**
+   * Rectificar (principio 7 del método): el error NO se borra ni se reescribe, se corrige
+   * con un apunte nuevo de tipo AJUSTE/RECTIFICACIÓN que apunta al rectificado y explica la
+   * causa. Aquí solo se prepara el borrador con la referencia ya puesta; el formulario exige
+   * el resto (referencia y causa son obligatorias para AJUSTE).
+   */
+  const abrirRectificacion = (r: ApunteRegistro) => {
+    setDetalle(null)
+    setApertura({
+      borrador: {
+        fechaHora: '',
+        tipo: 'AJUSTE',
+        ubicacionOrigen: r.ubicacionOrigen,
+        ubicacionDestino: r.ubicacionDestino,
+        rectificaAUid: r.uid,
+      },
+      titulo: `Rectificar ${r.id}`,
+    })
     setFormAbierto(true)
   }
   const abrirPlantilla = (p: PlantillaRapida) => {
@@ -382,6 +427,7 @@ export function DiarioPage() {
   const borrar = async (r: ApunteRegistro) => {
     setError(null)
     if (!window.confirm(`¿Borrar el apunte ${r.id} (${ETIQUETA_TIPO[r.tipo]})?`)) return
+    setDetalle(null)
     try {
       const res = await eliminarApunte(r.uid)
       const n = res.cambios.length
@@ -508,29 +554,36 @@ export function DiarioPage() {
       <p className="text-xs text-slate-400">
         En la tabla: <kbd className={KBD}>↑</kbd> <kbd className={KBD}>↓</kbd> mueven la fila,{' '}
         <kbd className={KBD}>Inicio</kbd>/<kbd className={KBD}>Fin</kbd> saltan a los extremos,{' '}
-        <kbd className={KBD}>Enter</kbd> edita y <kbd className={KBD}>Esc</kbd> deselecciona.
+        <kbd className={KBD}>Enter</kbd> abre la ficha del apunte (notas y acciones) y{' '}
+        <kbd className={KBD}>Esc</kbd> deselecciona.
       </p>
 
       {/* Tabla virtualizada (solo se pintan las filas visibles) y navegable por teclado. */}
       <div
         ref={contenedorRef}
         onKeyDown={onTeclaTabla}
-        className="max-h-[70vh] overflow-auto rounded-lg border border-slate-200 dark:border-slate-800"
+        className="max-h-[70vh] overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800"
       >
         <table
-          className="w-full border-collapse text-sm"
+          className="w-full table-fixed border-collapse text-sm"
           aria-label="Diario de apuntes"
           aria-rowcount={filasFiltradas.length}
         >
+          <colgroup>
+            {tabla.getAllLeafColumns().map((c) => (
+              <col key={c.id} style={{ width: ANCHO_COLUMNA[c.id] }} />
+            ))}
+          </colgroup>
           <caption className="sr-only">
             Diario de apuntes contables. Usa las flechas para moverte entre filas, Enter para
-            editar la fila activa y Escape para deseleccionar.
+            abrir la ficha de la fila activa (notas, editar, duplicar, rectificar y borrar) y
+            Escape para deseleccionar.
           </caption>
           <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 shadow-sm dark:bg-slate-900">
             {tabla.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((h) => (
-                  <th key={h.id} scope="col" className="px-3 py-2 font-medium">
+                  <th key={h.id} scope="col" className="px-2 py-2 font-medium">
                     {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                   </th>
                 ))}
@@ -554,16 +607,19 @@ export function DiarioPage() {
                   tabIndex={activa ? 0 : -1}
                   aria-selected={activa}
                   aria-rowindex={item.index + 1}
-                  onClick={() => setFilaActiva(item.index)}
+                  onClick={() => {
+                    setFilaActiva(item.index)
+                    setDetalle(row.original)
+                  }}
                   className={
-                    'cursor-default outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ' +
+                    'cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 ' +
                     (activa
                       ? 'bg-amber-50 dark:bg-amber-950/30'
                       : 'hover:bg-slate-50 dark:hover:bg-slate-900/60')
                   }
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-1.5">
+                    <td key={cell.id} className="truncate px-2 py-1.5">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -577,7 +633,7 @@ export function DiarioPage() {
             )}
             {filasFiltradas.length === 0 && (
               <tr>
-                <td colSpan={columnas.length} className="px-3 py-8 text-center text-slate-400">
+                <td colSpan={columnas.length} className="px-2 py-8 text-center text-slate-400">
                   {registros.length === 0
                     ? 'El diario está vacío. Registra el primer apunte.'
                     : 'Ningún apunte coincide con los filtros.'}
@@ -587,6 +643,19 @@ export function DiarioPage() {
           </tbody>
         </table>
       </div>
+
+      <FichaApunte
+        fila={detalle}
+        onCerrar={() => {
+          setDetalle(null)
+          // Devuelve el foco a la fila: quien navega con el teclado sigue donde estaba.
+          if (filaActiva >= 0) enfocarFila(filaActiva)
+        }}
+        onEditar={abrirEdicion}
+        onDuplicar={abrirDuplicado}
+        onRectificar={abrirRectificacion}
+        onBorrar={(r) => void borrar(r)}
+      />
 
       <FormularioApunte
         abierto={formAbierto}
@@ -605,5 +674,95 @@ export function DiarioPage() {
         onGuardado={() => setAviso('Evento DeFi registrado: revisa las patas en Posiciones.')}
       />
     </div>
+  )
+}
+
+/**
+ * FichaApunte — ventana del apunte: lo que ya no ocupa columna en la tabla.
+ *
+ * Reúne el detalle completo (incluidas las NOTAS, que en la tabla se truncaban) y las
+ * cuatro acciones sobre el apunte. «Rectificar» es la vía del método cuando el apunte ya
+ * está asentado: no reescribe el pasado, abre un AJUSTE/RECTIFICACIÓN que lo referencia.
+ */
+function FichaApunte({
+  fila,
+  onCerrar,
+  onEditar,
+  onDuplicar,
+  onRectificar,
+  onBorrar,
+}: {
+  fila: FilaDiario | null
+  onCerrar: () => void
+  onEditar: (r: ApunteRegistro) => void
+  onDuplicar: (r: ApunteRegistro) => void
+  onRectificar: (r: ApunteRegistro) => void
+  onBorrar: (r: ApunteRegistro) => void
+}) {
+  if (!fila) return null
+  const r = fila.registro
+
+  return (
+    <Modal titulo={`Apunte ${r.id}`} abierto onCerrar={onCerrar}>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{ETIQUETA_TIPO[r.tipo]}</span>
+          <ChipZonaGris apunte={r} />
+          <span className="tabular-nums text-slate-500">{fmtFechaHora(r.fechaHora)}</span>
+          {fila.origenKyc !== null && <SelloKyc kyc={fila.origenKyc} />}
+          <BadgeEstadoProbatorio
+            estado={fila.estadoProbatorio}
+            titulo={fila.faltantesProbatorios ? `Falta: ${fila.faltantesProbatorios}` : undefined}
+          />
+        </div>
+
+        <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-sm">
+          <Dato etiqueta="Origen">{fila.origen}</Dato>
+          <Dato etiqueta="Destino">{fila.destino}</Dato>
+          <Dato etiqueta="Salida">{fila.salida}</Dato>
+          <Dato etiqueta="Entrada">{fila.entrada}</Dato>
+          <Dato etiqueta="Comisión">{fila.comision}</Dato>
+          <Dato etiqueta="Contravalor">{fmtEuro(r.contravalorEUR)}</Dato>
+          {fila.rectificaA && <Dato etiqueta="Rectifica a">{fila.rectificaA}</Dato>}
+        </dl>
+
+        <div>
+          <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Notas</h3>
+          <p className="whitespace-pre-wrap break-words text-sm">
+            {r.notas?.trim() ? r.notas : <span className="text-slate-400">Sin notas.</span>}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+          <button type="button" className={BTN_SEC} onClick={() => onEditar(r)}>
+            Editar
+          </button>
+          <button type="button" className={BTN_SEC} onClick={() => onDuplicar(r)}>
+            Duplicar
+          </button>
+          <button
+            type="button"
+            className={BTN_SEC}
+            title="Corrige el apunte con un AJUSTE/RECTIFICACIÓN que lo referencia, sin reescribirlo"
+            onClick={() => onRectificar(r)}
+          >
+            Rectificar
+          </button>
+          <button type="button" className={`${BTN_PELIGRO} ml-auto`} onClick={() => onBorrar(r)}>
+            Borrar
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/** Par etiqueta/valor de la ficha. */
+function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
+  return (
+    <>
+      <dt className="text-slate-500">{etiqueta}</dt>
+      <dd className="tabular-nums">{children}</dd>
+    </>
   )
 }

@@ -3,7 +3,7 @@
  * Aloja el enrutado por hash y monta la página activa.
  */
 import { lazy, Suspense } from 'react'
-import { RUTAS, useRuta, irA, type Ruta } from './rutas'
+import { RUTAS, useRuta, irA, rutaPrincipal, subrutasDe, type Ruta } from './rutas'
 import { HomePage } from '../pages/HomePage'
 import { DiarioPage } from '../pages/DiarioPage'
 import { CarteraPage } from '../pages/CarteraPage'
@@ -14,11 +14,17 @@ import { FiscalPage } from '../pages/FiscalPage'
 import { UbicacionesPage } from '../pages/UbicacionesPage'
 import { ParametrosPage } from '../pages/ParametrosPage'
 import { AcercaPage } from '../pages/AcercaPage'
+import { BotonTema } from '../tema-ui'
 
 // Ajustes arrastra las librerías pesadas de xlsx (SheetJS) y exceljs: se carga bajo
 // demanda para no engordar el arranque (local-first: el resto de la app va ligero).
 const AjustesPage = lazy(() =>
   import('../pages/AjustesPage').then((m) => ({ default: m.AjustesPage })),
+)
+
+// La importación desde exploradores de bloques solo se usa a ratos: también bajo demanda.
+const ImportarPage = lazy(() =>
+  import('../pages/ImportarPage').then((m) => ({ default: m.ImportarPage })),
 )
 
 /** Mapea cada ruta a su página. */
@@ -50,11 +56,21 @@ function Pagina({ ruta }: { ruta: Ruta }) {
           <AjustesPage />
         </Suspense>
       )
+    case 'importar':
+      return (
+        <Suspense
+          fallback={<p className="text-sm text-stone-500 dark:text-slate-400">Cargando la importación…</p>}
+        >
+          <ImportarPage />
+        </Suspense>
+      )
   }
 }
 
 export function AppShell() {
   const ruta = useRuta()
+  const principal = rutaPrincipal(ruta)
+  const subrutas = subrutasDe(ruta)
 
   return (
     <div className="min-h-full bg-stone-50 text-stone-900 dark:bg-slate-950 dark:text-slate-100">
@@ -83,11 +99,11 @@ export function AppShell() {
                 key={r}
                 type="button"
                 onClick={() => irA(r)}
-                aria-current={ruta === r ? 'page' : undefined}
+                aria-current={principal === r ? 'page' : undefined}
                 className={
                   'rounded-md px-3 py-1.5 text-sm font-medium transition-colors ' +
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ' +
-                  (ruta === r
+                  (principal === r
                     ? 'border border-brand-200 bg-white font-semibold text-brand-700 shadow-sm ' +
                       'dark:border-brand-500/60 dark:bg-slate-900 dark:text-brand-200'
                     : 'border border-transparent text-stone-600 hover:bg-white/70 hover:text-stone-900 ' +
@@ -99,6 +115,8 @@ export function AppShell() {
             ))}
           </nav>
 
+          <BotonTema />
+
           <span className="hidden shrink-0 font-mono text-xs text-stone-400 sm:inline dark:text-slate-300">
             v{__APP_VERSION__}
           </span>
@@ -106,6 +124,7 @@ export function AppShell() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6">
+        {subrutas.length > 1 && <SubNav rutaActual={ruta} entradas={subrutas} />}
         <Pagina ruta={ruta} />
       </main>
 
@@ -124,6 +143,38 @@ export function AppShell() {
         <span className="font-mono">v{__APP_VERSION__}</span>
       </footer>
     </div>
+  )
+}
+
+/**
+ * Pestañas secundarias de un apartado (Cartera → Posiciones; Ajustes → Ubicaciones,
+ * Parámetros…). Se pintan dentro de la página, no en un desplegable.
+ */
+function SubNav({ rutaActual, entradas }: { rutaActual: Ruta; entradas: { ruta: Ruta; etiqueta: string }[] }) {
+  return (
+    <nav
+      className="mb-5 flex flex-wrap items-center gap-1 border-b border-stone-200 pb-2 print:hidden dark:border-slate-800"
+      aria-label="Apartados"
+    >
+      {entradas.map(({ ruta: r, etiqueta }) => (
+        <button
+          key={r}
+          type="button"
+          onClick={() => irA(r)}
+          aria-current={rutaActual === r ? 'page' : undefined}
+          className={
+            'rounded-md px-3 py-1 text-sm transition-colors ' +
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ' +
+            (rutaActual === r
+              ? 'bg-brand-50 font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-200'
+              : 'font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800 ' +
+                'dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100')
+          }
+        >
+          {etiqueta}
+        </button>
+      ))}
+    </nav>
   )
 }
 

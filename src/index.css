@@ -2,8 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * ESQUEMA DE COLOR NATIVO.
+ *
+ * Es lo que tiñe los widgets del navegador (barras de scroll, selectores de fecha). Lo fija
+ * `aplicarTema()` como estilo en línea de <html>, y el script de `index.html` antes del
+ * primer pintado; estas reglas son el valor de reserva por si el script no llega a correr.
+ */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
 }
 
 html,
@@ -15,11 +26,10 @@ body,
 /*
  * LIENZO DE LA PÁGINA.
  *
- * La configuración de Tailwind no declara `darkMode`, así que vale el valor por defecto
- * (`media`): las variantes `dark:` se activan solas con la preferencia del sistema. El
- * problema era que ni `html` ni `body` tenían fondo oscuro, de modo que en un equipo con el
- * sistema en oscuro se aplicaban los textos claros de las variantes `dark:` SOBRE UN LIENZO
- * BLANCO. El resultado era claro sobre claro: ilegible.
+ * Tailwind usa `darkMode: 'class'`: las variantes `dark:` se activan con la clase `dark` en
+ * <html>, que pone `src/ui/tema.ts` según la preferencia del alumno (claro / oscuro /
+ * sistema). Si `html` no tuviera fondo oscuro se aplicarían los textos claros de las
+ * variantes `dark:` SOBRE UN LIENZO BLANCO: claro sobre claro, ilegible.
  *
  * Se fija aquí, y no con clases, para que el color cubra también el rebote del scroll y el
  * primer pintado, antes de que React monte nada.
@@ -28,12 +38,9 @@ html {
   background-color: #fafaf9; /* stone-50 */
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    background-color: #020617; /* slate-950 */
-  }
+html.dark {
+  background-color: #020617; /* slate-950 */
 }
-
 
 /*
  * CORRECCIÓN DE CONTRASTE EN CLARO.
@@ -43,8 +50,8 @@ html {
  * 4,5:1 de la WCAG AA. Un escalón más oscuro los deja por encima sin cambiar el papel
  * visual que cumplen: siguen siendo el gris apagado de la jerarquía.
  *
- * Este bloque va ANTES de la consulta de modo oscuro, que lo sobrescribe con los tonos
- * claros cuando toca.
+ * Este bloque va ANTES del de modo oscuro, que lo sobrescribe con los tonos claros cuando
+ * toca (y gana siempre por especificidad: `.dark .text-…` frente a `.text-…`).
  */
 .text-stone-400 { color: #78716c; } /* → stone-500 */
 .text-slate-400 { color: #64748b; } /* → slate-500 */
@@ -57,39 +64,38 @@ html {
  * Sobre el lienzo oscuro caen por debajo del 4,5:1 que exige la WCAG AA: el gris de las
  * leyendas se quedaba en 4,24:1 y el verde del semáforo en 4,02:1.
  *
- * Se corrigen aquí, en un solo sitio y solo dentro de la consulta de modo oscuro, en lugar
- * de tocar los cientos de puntos donde se usan. El modo claro no se ve afectado.
+ * Se corrigen aquí, en un solo sitio y solo bajo la clase `dark`, en lugar de tocar los
+ * cientos de puntos donde se usan. El modo claro no se ve afectado.
  *
  * Auditado con `contraste.mjs`, que recorre las diez pantallas midiendo el contraste real
  * de cada texto contra su fondo efectivo.
  */
-@media (prefers-color-scheme: dark) {
-  /* Grises secundarios: un escalón más claros. */
-  .text-slate-500 { color: #94a3b8; } /* → slate-400 */
-  .text-stone-500 { color: #a8a29e; } /* → stone-400 */
-  .text-slate-400 { color: #cbd5e1; } /* → slate-300 */
-  .text-stone-400 { color: #d6d3d1; } /* → stone-300 */
-  .text-slate-600 { color: #94a3b8; } /* → slate-400 */
-  .text-stone-600 { color: #a8a29e; } /* → stone-400 */
-  .text-stone-700 { color: #d6d3d1; } /* → stone-300 */
-  .text-slate-300 { color: #e2e8f0; } /* → slate-200 */
 
-  /* Textos «fuertes» pensados para fondo claro: sobre tarjeta oscura quedaban casi
-     negros sobre casi negro. */
-  .text-stone-800 { color: #e7e5e4; } /* → stone-200 */
-  .text-stone-900 { color: #f5f5f4; } /* → stone-100 */
-  .text-slate-800 { color: #e2e8f0; } /* → slate-200 */
-  .text-slate-900 { color: #f1f5f9; } /* → slate-100 */
+/* Grises secundarios: un escalón más claros. */
+.dark .text-slate-500 { color: #94a3b8; } /* → slate-400 */
+.dark .text-stone-500 { color: #a8a29e; } /* → stone-400 */
+.dark .text-slate-400 { color: #cbd5e1; } /* → slate-300 */
+.dark .text-stone-400 { color: #d6d3d1; } /* → stone-300 */
+.dark .text-slate-600 { color: #94a3b8; } /* → slate-400 */
+.dark .text-stone-600 { color: #a8a29e; } /* → stone-400 */
+.dark .text-stone-700 { color: #d6d3d1; } /* → stone-300 */
+.dark .text-slate-300 { color: #e2e8f0; } /* → slate-200 */
 
-  /* Semáforo del cuadre: los tonos del modo claro son demasiado oscuros aquí. Se
-     mantiene la lectura verde / ámbar / rojo, que es lo que el semáforo comunica. */
-  .text-semaforo-ok { color: #4ade80; }      /* green-400 */
-  .text-semaforo-revisar { color: #fbbf24; } /* amber-400 */
-  .text-semaforo-error { color: #f87171; }   /* red-400 */
+/* Textos «fuertes» pensados para fondo claro: sobre tarjeta oscura quedaban casi
+   negros sobre casi negro. */
+.dark .text-stone-800 { color: #e7e5e4; } /* → stone-200 */
+.dark .text-stone-900 { color: #f5f5f4; } /* → stone-100 */
+.dark .text-slate-800 { color: #e2e8f0; } /* → slate-200 */
+.dark .text-slate-900 { color: #f1f5f9; } /* → slate-100 */
 
-  /* Acento de marca: el brand-600 es texto interactivo sobre blanco; sobre oscuro
-     necesita subir a los tonos claros de la paleta. */
-  .text-brand-600 { color: #f6d19e; } /* → brand-200 */
-  .text-brand-700 { color: #fbe8cd; } /* → brand-100 */
-  .text-brand-800 { color: #fbe8cd; }
-}
+/* Semáforo del cuadre: los tonos del modo claro son demasiado oscuros aquí. Se
+   mantiene la lectura verde / ámbar / rojo, que es lo que el semáforo comunica. */
+.dark .text-semaforo-ok { color: #4ade80; }      /* green-400 */
+.dark .text-semaforo-revisar { color: #fbbf24; } /* amber-400 */
+.dark .text-semaforo-error { color: #f87171; }   /* red-400 */
+
+/* Acento de marca: el brand-600 es texto interactivo sobre blanco; sobre oscuro
+   necesita subir a los tonos claros de la paleta. */
+.dark .text-brand-600 { color: #f6d19e; } /* → brand-200 */
+.dark .text-brand-700 { color: #fbe8cd; } /* → brand-100 */
+.dark .text-brand-800 { color: #fbe8cd; }

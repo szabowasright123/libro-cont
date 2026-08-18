@@ -4,6 +4,95 @@ Todas las versiones notables de la app. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/); versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [No publicado] — cabecera de siete pestañas e importación desde exploradores
+
+Ejecución del `docs/ENCARGO_CABECERA_E_IMPORTACION.md` (criterio del autor, 16-08-2026). El
+**motor** (`src/engine/`) no cambia de contrato y los **golden tests** siguen intactos: todo lo
+nuevo vive en la capa de datos y en la UI.
+
+### Cabecera: de nueve pestañas a siete (Parte 1)
+
+- `Cartera` agrupa ahora a **Posiciones**, y `Ajustes` a **Ubicaciones**, **Parámetros** e
+  **Importar cadena**. Los subapartados se muestran como pestañas secundarias dentro de la
+  página (nunca un desplegable: esconder obliga a un clic extra en una app de uso diario).
+- **Se conservan todas las rutas por hash**: `#/posiciones`, `#/ubicaciones` y `#/parametros`
+  siguen resolviendo igual (hay enlaces internos y el alumno puede tenerlas guardadas). Las
+  páginas no se han tocado: es una capa de navegación por encima.
+
+### Importación desde exploradores de bloques (Parte 2)
+
+- **Direcciones on-chain en la ubicación** (varias por ubicación; esquema Dexie **v9** con
+  índice multiEntry). Atributo declarativo: no altera ningún cálculo. Es lo que permite la
+  única automatización fiable de la importación.
+- **Lector de CSV de explorador** (`src/data/import/explorador.ts`): detecta la exportación por
+  sus columnas (normal · ERC-20 · internas) y el símbolo nativo de la cabecera —así BscScan o
+  Arbiscan valen igual—, casa los nombres de columna **por prefijo** (los de precio llevan la
+  cotización incrustada), convierte el UTC a **hora local española** y trata las transacciones
+  **fallidas** como lo que son: no mueven valor, pero gastan gas.
+- **Bandeja de triaje** (nuevo apartado *Ajustes → Importar cadena*): cada movimiento se propone
+  con lo que sí se puede deducir y **nada entra en el Diario sin confirmación**. La única
+  propuesta con confianza alta es el traslado entre direcciones propias (TRANSFERENCIA); todo lo
+  demás nace sin calificar, con sugerencias. Ninguna calificación fiscal se inventa por
+  heurística.
+- **Alta en modo AÑADIR** (`repositorio.agregarApuntes`), a diferencia de XLSX/CSV/JSON, que
+  reemplazan el Libro: deduplica por la marca `[tx:txhash#clase#índice]` que queda en las notas
+  (reimportar el mismo fichero, o solapar dos exportaciones de la misma transacción, no duplica)
+  y renumera al insertar en medio del orden cronológico.
+- **Contravalor en euros**: el apunte importado nace **sin él** (sin red no hay precios, y el
+  explorador da dólares y solo del activo nativo). La validación existente ya lo marca como
+  pendiente. Es correcto que sea así.
+- **Aviso de dato sensible**: la copia JSON incluye las direcciones —debe restaurar el Libro
+  completo— y ahora lo advierte antes de descargar.
+- Cero llamadas de red en runtime (Regla de oro 3): se descartó expresamente consultar el
+  explorador, que revelaría a un tercero la dirección del alumno y todo su historial.
+
+**Verificación**: `npm test` 414 verdes (37 nuevos: lector de CSV, direcciones, triaje y alta
+aditiva; los 46 golden intactos), `npm run test:e2e` 6 verdes (nuevo camino: registrar dirección
+→ subir CSV → triaje → alta → reimportar sin duplicar) y `npm run build` en verde.
+
+### Tema claro y tema oscuro elegibles
+
+- Hasta ahora el modo oscuro era **automático** (`prefers-color-scheme`) y no había forma de
+  elegir. Ahora el tema es una **preferencia explícita**: claro, oscuro o «como el sistema»
+  (por defecto, que es el comportamiento de siempre).
+- Tailwind pasa a `darkMode: 'class'`: manda la clase `dark` en `<html>`, que gobierna
+  `src/ui/tema.ts`. Las correcciones de contraste de `index.css` dejan de vivir en una
+  `@media (prefers-color-scheme: dark)` y pasan a colgar de `.dark`.
+- **Interruptor claro/oscuro en la cabecera** (junto a la versión) y las tres opciones en
+  *Ajustes → Apariencia*. La preferencia se guarda en `localStorage` de este navegador
+  (Regla de oro 3: no viaja a ninguna parte) y se sincroniza entre pestañas.
+- Un **script en línea** en `index.html` aplica el tema antes del primer pintado: arrancar en
+  oscuro ya no da un destello blanco. También se ajustan `color-scheme` (widgets nativos:
+  barras de scroll, selectores de fecha) y el `theme-color` de la barra del navegador.
+- Corregido de paso el círculo numerado del flujo de Inicio, que en oscuro quedaba con el
+  texto y el fondo del mismo color (`text-brand-700` sobre `bg-brand-100`).
+
+### Diario: la tabla cabe en pantalla y el apunte tiene ficha
+
+- **Fuera las columnas «Notas» y la de botones** (Editar/Duplicar/Borrar). La tabla queda
+  como lo que es: una lista para leer y localizar, no un panel de mandos.
+- **La tabla cabe a lo ancho sin desplazamiento lateral**. Pasa a `table-fixed` con reparto
+  de anchos en porcentaje, así ninguna cabecera larga («Estado probatorio») empuja al resto;
+  lo que no entra se recorta con puntos suspensivos y el valor completo sigue a un clic (y en
+  el `title`). Como ninguna celda parte en dos líneas, todas las filas conservan la misma
+  altura, que es de lo que depende el virtualizador.
+- **Pinchar un apunte abre su ficha** (o pulsar `Enter` sobre la fila): detalle completo,
+  **notas** sin truncar y las cuatro acciones — **Editar**, **Duplicar**, **Rectificar** y
+  **Borrar**. Al cerrarla, el foco vuelve a la fila: quien navega con el teclado sigue donde
+  estaba.
+- **Rectificar** es nuevo como acción directa: prepara un apunte de AJUSTE/RECTIFICACIÓN con
+  la referencia al apunte ya puesta, que es la vía del método (principio 7: el error no se
+  reescribe, se corrige con un apunte nuevo que lo referencia y explica la causa).
+- Con una ventana abierta, el teclado de la tabla se inhibe: `Esc` cierra la ventana en vez
+  de deseleccionar la fila que quedó debajo.
+
+### Página de inicio
+
+- Nuevo texto de presentación bajo el título.
+- El cuadro de estado **«Base de datos local»** se mantiene, pero baja al final de la página,
+  justo antes del enlace «Acerca de Libro Hespérides»: es una comprobación técnica, no lo
+  primero que el alumno necesita leer.
+
 ## [1.3.0] — 2026-08-15
 
 El CUADRE por fin tiene pantalla y el trabajo del alumno queda protegido frente a purgas del

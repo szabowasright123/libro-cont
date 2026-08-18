@@ -29,6 +29,7 @@ import {
   CUADRE_REAL_CASO_DEMO,
 } from './demo/caso-demo'
 import { renumerar, type CambioNumero } from './numeracion'
+import { extraerMarcasTx } from './import/triaje'
 import type { ContenidoLibro } from './import/contenido'
 import type {
   EntradaSnapshot,
@@ -107,6 +108,58 @@ export async function crearApunte(borrador: BorradorApunte): Promise<ResultadoEs
     await db.apuntes.add(registro)
     const cambios = await renumerarTodo()
     return { uid, cambios }
+  })
+}
+
+/** Resultado de un alta EN BLOQUE en modo aditivo (importación de exploradores). */
+export interface ResultadoAlta {
+  /** Apuntes realmente añadidos. */
+  anadidos: number
+  /** Candidatos descartados por estar ya en el Libro (misma marca `[tx:…]`). */
+  duplicados: number
+  /** Correlativos que han cambiado al insertar en medio del orden cronológico. */
+  cambios: CambioNumero[]
+}
+
+/**
+ * AÑADE apuntes al Libro sin borrar nada (modo aditivo del ENCARGO, Parte 2).
+ *
+ * A diferencia de `reemplazarContenido` (XLSX/CSV/JSON, que traen un Libro entero), aquí se
+ * está sumando una cadena a un Libro que ya tiene otras, así que:
+ *  - **deduplica** por la marca `[tx:txhash#clase#índice]` que la importación deja en las
+ *    notas: reimportar el mismo fichero, o solapar las exportaciones normal y ERC-20 de la
+ *    misma transacción, no duplica nada;
+ *  - **renumera** al final, porque los apuntes nuevos casi siempre entran en medio del orden
+ *    cronológico (la renumeración ya está resuelta en numeracion.ts; aquí solo se usa).
+ */
+export async function agregarApuntes(borradores: readonly BorradorApunte[]): Promise<ResultadoAlta> {
+  return db.transaction('rw', db.apuntes, async () => {
+    const existentes = await db.apuntes.toArray()
+    const marcasPrevias = new Set(existentes.flatMap((r) => extraerMarcasTx(r.notas)))
+
+    const nuevos: ApunteRegistro[] = []
+    let duplicados = 0
+    const base = Date.now()
+    for (const [i, b] of borradores.entries()) {
+      const marcas = extraerMarcasTx(b.notas)
+      if (marcas.some((m) => marcasPrevias.has(m))) {
+        duplicados++
+        continue
+      }
+      marcas.forEach((m) => marcasPrevias.add(m))
+      nuevos.push({
+        ...b,
+        uid: cryptoRandomId(),
+        id: '0000-000', // provisional; renumerarTodo asigna el correlativo real
+        // `creadoEn` estable y creciente: preserva el orden de llegada como desempate
+        // cuando dos apuntes comparten fechaHora (varias patas de la misma transacción).
+        creadoEn: new Date(base + i).toISOString(),
+      })
+    }
+
+    if (nuevos.length > 0) await db.apuntes.bulkAdd(nuevos)
+    const cambios = nuevos.length > 0 ? await renumerarTodo() : []
+    return { anadidos: nuevos.length, duplicados, cambios }
   })
 }
 

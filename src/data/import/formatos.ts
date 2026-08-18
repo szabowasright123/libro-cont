@@ -154,6 +154,75 @@ export function aDecimalDominio(valor: unknown): string | undefined {
   return /^-?\d+(\.\d+)?$/.test(limpio) ? limpio : undefined
 }
 
+/**
+ * Valor ANGLOSAJÓN de un CSV de explorador de bloques → cadena decimal de dominio.
+ *
+ * Los exploradores (Etherscan y sus clones) escriben siempre punto decimal y, en los
+ * importes grandes, coma de miles («1,234.5678»). Por eso NO vale `aDecimalDominio`, que
+ * ante una coma asume formato es-ES. Aquí la coma es SIEMPRE separador de miles.
+ * Devuelve undefined si está vacío o mal formado (nunca lanza).
+ */
+export function aDecimalAnglo(valor: unknown): string | undefined {
+  if (valor === undefined || valor === null) return undefined
+  if (typeof valor === 'number') return Number.isFinite(valor) ? aCadena(D(valor)) : undefined
+  const t = String(valor).trim().replace(/,/g, '')
+  if (t === '') return undefined
+  if (!/^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(t)) return undefined
+  // Normaliza posible notación exponencial del explorador a decimal plano.
+  return aCadena(D(t))
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 3 bis. Instante UTC → hora local española (DOMINIO §3.1)
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Zona del taller: el dominio anota SIEMPRE hora local española. */
+export const ZONA_TALLER = 'Europe/Madrid' as const
+
+/**
+ * Convierte un instante (ms desde epoch, o fecha/hora UTC de un explorador) a la
+ * FechaHoraISO del dominio: ISO local sin zona, en hora española («2024-01-16T10:00:00»).
+ *
+ * Se usa `Intl` con la zona horaria del taller, así que el cambio de hora
+ * (CET/CEST) sale bien sin arrastrar ninguna librería: un movimiento a las 10:00 UTC
+ * del 16-1 es 11:00 en Madrid, y del 16-7, 12:00.
+ */
+export function instanteAHoraLocal(ms: number, zona: string = ZONA_TALLER): string | undefined {
+  if (!Number.isFinite(ms)) return undefined
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: zona,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(ms))
+  const g = (t: string) => partes.find((x) => x.type === t)?.value ?? ''
+  const hora = g('hour') === '24' ? '00' : g('hour') // Intl puede dar 24 a medianoche
+  return `${g('year')}-${g('month')}-${g('day')}T${hora}:${g('minute')}:${g('second')}`
+}
+
+/**
+ * Fecha/hora UTC tal y como la escriben los exploradores («2024-01-16 10:00:00»,
+ * «2024-01-16T10:00:00Z», con o sin sufijo «UTC») → hora local española del dominio.
+ * Devuelve undefined si no se puede interpretar.
+ */
+export function utcTextoAHoraLocal(texto: unknown, zona: string = ZONA_TALLER): string | undefined {
+  const t = String(texto ?? '').trim().replace(/\s*UTC$/i, '')
+  if (t === '') return undefined
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/)
+  if (m) {
+    const [, aa = '0', mm = '1', dd = '1', hh = '0', mi = '0', ss] = m
+    const ms = Date.UTC(+aa, +mm - 1, +dd, +hh, +mi, ss ? +ss : 0)
+    return instanteAHoraLocal(ms, zona)
+  }
+  // Formatos con mes en texto o barra («1/16/2024 10:00:00»): último recurso.
+  const ms = Date.parse(t.endsWith('Z') ? t : `${t}Z`)
+  return Number.isFinite(ms) ? instanteAHoraLocal(ms, zona) : undefined
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // 4. Sí/No (KYC de UBICACIONES) ↔ booleano
 // ────────────────────────────────────────────────────────────────────────────

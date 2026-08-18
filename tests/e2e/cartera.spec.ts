@@ -15,11 +15,30 @@ async function descartarAvisoPwa(page: Page) {
   await cerrar.click({ timeout: 8000 }).catch(() => {})
 }
 
+/**
+ * Navega a una sección. Desde la reestructuración de la cabecera (ENCARGO, Parte 1) hay
+ * SIETE pestañas principales y algunas secciones son subapartados: se llega a ellas por la
+ * pestaña que las agrupa y luego por su pestaña secundaria.
+ */
+const SUBAPARTADO_DE: Record<string, string> = {
+  Posiciones: 'Cartera',
+  Ubicaciones: 'Ajustes',
+  'Parámetros': 'Ajustes',
+  'Importar cadena': 'Ajustes',
+}
+
 async function irA(page: Page, seccion: string) {
+  const padre = SUBAPARTADO_DE[seccion]
   await page
     .getByRole('navigation', { name: 'Secciones' })
-    .getByRole('button', { name: seccion, exact: true })
+    .getByRole('button', { name: padre ?? seccion, exact: true })
     .click()
+  if (padre) {
+    await page
+      .getByRole('navigation', { name: 'Apartados' })
+      .getByRole('button', { name: seccion, exact: true })
+      .click()
+  }
 }
 
 test('Cartera: cargar caso de ejemplo, ver la valoración y recalcular al editar un precio', async ({

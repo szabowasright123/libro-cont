@@ -307,6 +307,18 @@ export interface Ubicacion {
    * terceros que gestionan claves ajenas), y la UI nunca les sugiere la marca `extranjero`.
    */
   autocustodia?: boolean
+  /**
+   * DIRECCIONES on-chain de esta ubicación (varias: una wallet tiene muchas). Atributo
+   * DECLARATIVO —como `extranjero` o `autocustodia`—: no interviene en ningún cálculo del
+   * motor. Sirve a la importación desde exploradores de bloques (ENCARGO, Parte 2): si el
+   * origen y el destino de un movimiento son ambos direcciones registradas del alumno, el
+   * movimiento es un TRASLADO (TRANSFERENCIA) y puede proponerse con confianza alta; en
+   * cuanto una de las dos no consta, hay frontera con el exterior y lo califica el alumno.
+   *
+   * Dato SENSIBLE: una dirección revela todo el historial de la cadena. Vive solo en el
+   * navegador del alumno y viaja en la copia JSON, que se avisa al descargarla.
+   */
+  direcciones?: string[]
 }
 
 // ────────────────────────────────────────────────────────────────────────────
