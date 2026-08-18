@@ -44,6 +44,10 @@ jobs:
 
       - name: Build de producción
         run: npm run build
+        env:
+          # Dominio propio: el sitio se sirve desde la raíz de app.legelbitcoin.com,
+          # no desde /libro-cont/. Sobreescribe el `base` de vite.config.ts.
+          VITE_BASE: /
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5
