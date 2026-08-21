@@ -5,8 +5,7 @@ App web **local-first** del Taller de Contabilidad, Trazabilidad y Fiscalidad en
 (diario contable con SALDOS, FIFO y CUADRE calculados) y el **Archivo** (expediente
 probatorio).
 
-> Los datos del alumno **no salen de su navegador** salvo export explícito. Cero llamadas
-> de red en runtime.
+
 
 ## Stack
 
@@ -62,6 +61,10 @@ Las contribuciones se rigen por [CONTRIBUTING.md](CONTRIBUTING.md).
 Autor: **Javier Bravezo Durán** — asesoramiento fiscal y formación en Bitcoin ·
 [legelbitcoin.com](https://legelbitcoin.com/) · [@Javibrd](https://x.com/Javibrd) ·
 **javier@legel.es**
+
+Si quieres contribuir con Valor por Valor, acepto Bitcoin:
+- lq1qqdc6usxd2q0lftj87l6m7305afqg52xz85nkqvypufnjuu9jnjr536gqx4pvls23hua93e2ghtwevvm5wgtnwydmnpmq7sacc
+- bc1q6f0z2zanwnvjuc635guxuypyf7p2499a5j7rdc
 
 ## Reglas del proyecto
 
