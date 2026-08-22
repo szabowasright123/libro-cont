@@ -89,13 +89,145 @@ export type TipoOperacion =
  */
 export type FlagOperacion = boolean | 'segun'
 
+/**
+ * SENTIDO del apunte — resuelve los flags `'segun'` de DONACIÓN y AJUSTE.
+ *
+ * El catálogo dice «según el caso» porque una DONACIÓN puede ser entregada o recibida y un
+ * AJUSTE puede o no mover existencias. Hasta la v1.5.0 el motor resolvía ese «según» como
+ * «no» de forma implícita (`consumeLote === true`), con la consecuencia de que un bitcoin
+ * donado salía del SALDO y se quedaba vivo en la COLA FIFO. Este campo hace explícita la
+ * decisión y es la que consulta `resolverFlags()`.
+ *
+ *  · `'entregada'` — sale del patrimonio: consume cola FIFO. En DONACIÓN es transmisión
+ *    LUCRATIVA ínter vivos (art. 33.1 LIRPF), valorada por las normas del ISD sin exceder
+ *    el valor de mercado (art. 36 LIRPF), y su eventual PÉRDIDA no se computa
+ *    (art. 33.5.c LIRPF: «no se computarán como pérdidas patrimoniales […] las debidas a
+ *    transmisiones lucrativas por actos ínter vivos o a liberalidades»).
+ *  · `'recibida'` — entra en el patrimonio: abre lote FIFO. En DONACIÓN no hay ganancia en
+ *    el IRPF del donatario (tributa por el ISD); el coste del lote es el valor del art. 36.
+ *  · `'solo-saldos'` — corrige el saldo y NO toca la cola. Es el valor por defecto del
+ *    AJUSTE/RECTIFICACIÓN: rectificar un tecleo no transmite ni adquiere nada. Si lo que
+ *    hay que corregir son existencias reales, el apunte correcto es el de su tipo
+ *    (COMPRA, VENTA, PÉRDIDA…), no un AJUSTE.
+ */
+export type SentidoApunte = 'entregada' | 'recibida' | 'solo-saldos'
+
+/** Sentido por defecto de cada tipo con flags `'segun'` (undefined = hay que preguntar). */
+export const SENTIDO_POR_DEFECTO: Readonly<Partial<Record<TipoOperacion, SentidoApunte>>> =
+  Object.freeze({
+    // La DONACIÓN NO tiene defecto: entregada y recibida son opuestas y adivinarlo sería
+    // inventar un hecho. Sin `sentido`, el motor no mueve cola y la validación avisa.
+    AJUSTE: 'solo-saldos',
+  })
+
+/** Flags de un apunte ya resueltos a booleanos (sin `'segun'`). */
+export interface FlagsResueltos {
+  readonly simetrico: boolean
+  readonly alteracion: boolean
+  readonly abreLote: boolean
+  readonly consumeLote: boolean
+  /**
+   * true cuando el tipo trae flags `'segun'` y el apunte NO los resuelve. El motor se
+   * comporta de forma conservadora (ni abre ni consume cola) y la validación avisa: es la
+   * situación en la que el SALDO y la COLA FIFO pueden separarse.
+   */
+  readonly sinResolver: boolean
+}
+
+/**
+ * resolverFlags — convierte los flags del catálogo en booleanos para ESTE apunte.
+ *
+ * Es la única puerta por la que el motor debe leer `abreLote` / `consumeLote`: leer el
+ * catálogo directamente vuelve a enterrar el «según el caso» bajo un `=== true`.
+ */
+export function resolverFlags(
+  ap: Pick<Apunte, 'tipo'> & { sentido?: SentidoApunte },
+): FlagsResueltos {
+  const def = CATALOGO_TIPOS[ap.tipo]
+  const hayQueResolver =
+    def.simetrico === 'segun' ||
+    def.alteracion === 'segun' ||
+    def.abreLote === 'segun' ||
+    def.consumeLote === 'segun'
+
+  if (!hayQueResolver) {
+    return {
+      simetrico: def.simetrico === true,
+      alteracion: def.alteracion === true,
+      abreLote: def.abreLote === true,
+      consumeLote: def.consumeLote === true,
+      sinResolver: false,
+    }
+  }
+
+  const sentido = ap.sentido ?? SENTIDO_POR_DEFECTO[ap.tipo]
+
+  // Un flag que ya venía determinista en el catálogo manda sobre el sentido: la DONACIÓN
+  // es alteración patrimonial (`alteracion: true`) se mire por donde se mire.
+  const fijo = (f: FlagOperacion, siSegun: boolean): boolean => (f === 'segun' ? siSegun : f)
+
+  switch (sentido) {
+    case 'entregada':
+      return {
+        simetrico: fijo(def.simetrico, false),
+        alteracion: fijo(def.alteracion, true),
+        abreLote: fijo(def.abreLote, false),
+        consumeLote: fijo(def.consumeLote, true),
+        sinResolver: false,
+      }
+    case 'recibida':
+      return {
+        simetrico: fijo(def.simetrico, false),
+        // En el donatario no hay ganancia patrimonial en el IRPF: la donación recibida
+        // tributa por el ISD. El lote nace con el valor del art. 36 LIRPF.
+        alteracion: fijo(def.alteracion, false),
+        abreLote: fijo(def.abreLote, true),
+        consumeLote: fijo(def.consumeLote, false),
+        sinResolver: false,
+      }
+    case 'solo-saldos':
+      return {
+        simetrico: fijo(def.simetrico, false),
+        alteracion: fijo(def.alteracion, false),
+        abreLote: fijo(def.abreLote, false),
+        consumeLote: fijo(def.consumeLote, false),
+        sinResolver: false,
+      }
+    default:
+      // Sin sentido y sin defecto: conservador, y marcado para que la validación avise.
+      return {
+        simetrico: fijo(def.simetrico, false),
+        alteracion: fijo(def.alteracion, false),
+        abreLote: fijo(def.abreLote, false),
+        consumeLote: fijo(def.consumeLote, false),
+        sinResolver: true,
+      }
+  }
+}
+
+/** ¿Este apunte es una transmisión LUCRATIVA ínter vivos (art. 33.5.c LIRPF)? */
+export function esTransmisionLucrativa(
+  ap: Pick<Apunte, 'tipo'> & { sentido?: SentidoApunte },
+): boolean {
+  return ap.tipo === 'DONACION' && ap.sentido === 'entregada'
+}
+
 /** Flags y metadatos de un tipo de operación (una fila de la Tabla 7). */
 export interface DefinicionTipo {
   readonly tipo: TipoOperacion
   /** Etiqueta con acentos para la UI (p. ej. "MINERÍA"). */
   readonly etiqueta: string
-  /** ¿Participa en el CUADRE (afecta a saldos)? */
-  readonly cuadra: FlagOperacion
+  /**
+   * ¿La operación es SIMÉTRICA, es decir, tiene salida y entrada equivalentes?
+   *
+   * Describe la forma del apunte, NO si «cuadra». El cuadre lo decide `saldos.ts`, que
+   * computa toda cantidad anotada con independencia de este flag: una recompensa de
+   * staking entra sin que salga nada y aun así cuadra perfectamente, porque el saldo real
+   * de la plataforma también subió. Las asimetrías son información fiscal —algo entró o
+   * salió del patrimonio sin contrapartida—, no descuadres. Se llamaba `cuadra` hasta la
+   * versión 1.4.0; el nombre inducía a error y ningún cálculo lo consultaba.
+   */
+  readonly simetrico: FlagOperacion
   /** ¿Es una alteración patrimonial (relevancia fiscal en la transmisión)? */
   readonly alteracion: FlagOperacion
   /** ¿Abre lote FIFO (entrada que crea coste de adquisición)? */
@@ -118,7 +250,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   COMPRA: {
     tipo: 'COMPRA',
     etiqueta: 'COMPRA',
-    cuadra: true,
+    simetrico: true,
     alteracion: false,
     abreLote: true,
     consumeLote: false,
@@ -129,7 +261,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   VENTA: {
     tipo: 'VENTA',
     etiqueta: 'VENTA',
-    cuadra: true,
+    simetrico: true,
     alteracion: true,
     abreLote: false,
     consumeLote: true,
@@ -140,19 +272,19 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   PERMUTA: {
     tipo: 'PERMUTA',
     etiqueta: 'PERMUTA',
-    cuadra: true,
+    simetrico: true,
     alteracion: true,
     abreLote: true,
     consumeLote: true,
     requiereDecisionManual: false,
     exigeRectificaA: false,
     calificacionFiscal:
-      'Alteración: se transmite lo entregado; lo recibido nace a valor de mercado',
+      'Alteración: se transmite lo entregado; se cuantifica por el MAYOR entre el valor de mercado de lo entregado y el de lo recibido (art. 37.1.h LIRPF); lo recibido nace por ese mismo valor',
   },
   TRANSFERENCIA: {
     tipo: 'TRANSFERENCIA',
     etiqueta: 'TRANSFERENCIA',
-    cuadra: true,
+    simetrico: true,
     alteracion: false,
     abreLote: false,
     consumeLote: false,
@@ -164,7 +296,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   RENDIMIENTO: {
     tipo: 'RENDIMIENTO',
     etiqueta: 'RENDIMIENTO',
-    cuadra: false,
+    simetrico: false,
     alteracion: true,
     abreLote: true,
     consumeLote: false,
@@ -175,7 +307,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   MINERIA: {
     tipo: 'MINERIA',
     etiqueta: 'MINERÍA',
-    cuadra: false,
+    simetrico: false,
     alteracion: true,
     abreLote: true,
     consumeLote: false,
@@ -186,7 +318,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   AIRDROP: {
     tipo: 'AIRDROP',
     etiqueta: 'AIRDROP',
-    cuadra: false,
+    simetrico: false,
     alteracion: true,
     abreLote: true,
     consumeLote: false,
@@ -197,7 +329,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   PAGO: {
     tipo: 'PAGO',
     etiqueta: 'PAGO',
-    cuadra: true,
+    simetrico: true,
     alteracion: true,
     abreLote: false,
     consumeLote: true,
@@ -208,7 +340,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   PERDIDA: {
     tipo: 'PERDIDA',
     etiqueta: 'PÉRDIDA',
-    cuadra: false,
+    simetrico: false,
     alteracion: true,
     abreLote: false,
     consumeLote: true,
@@ -219,7 +351,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   DONACION: {
     tipo: 'DONACION',
     etiqueta: 'DONACIÓN',
-    cuadra: 'segun',
+    simetrico: 'segun',
     alteracion: true,
     abreLote: 'segun',
     consumeLote: 'segun',
@@ -230,7 +362,7 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   AJUSTE: {
     tipo: 'AJUSTE',
     etiqueta: 'AJUSTE/RECTIFICACIÓN',
-    cuadra: 'segun',
+    simetrico: 'segun',
     alteracion: 'segun',
     abreLote: 'segun',
     consumeLote: 'segun',
@@ -241,8 +373,9 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
   LIQUIDACION_DERIVADO: {
     tipo: 'LIQUIDACION_DERIVADO',
     etiqueta: 'LIQUIDACIÓN DE DERIVADO',
-    // No cuadra con el saldo por sí mismo: el margen se mueve con TRANSFERENCIA aparte.
-    cuadra: false,
+    // Asimétrica: el resultado neto entra o sale sin contrapartida; el margen se mueve
+    // con un apunte de TRANSFERENCIA aparte.
+    simetrico: false,
     alteracion: true,
     // Abre lote por el activo acreditado, si lo hay. NUNCA consume: en una liquidación por
     // diferencias no se entrega el subyacente. Si la posición se salda debitando un activo,
@@ -251,7 +384,8 @@ export const CATALOGO_TIPOS: Readonly<Record<TipoOperacion, DefinicionTipo>> = {
     consumeLote: false,
     requiereDecisionManual: false,
     exigeRectificaA: false,
-    calificacionFiscal: 'GyP patrimonial, base del ahorro (arts. 33.1 y 34; NO art. 37.1.m)',
+    calificacionFiscal:
+      'GyP patrimonial (art. 33.1), base del ahorro por el art. 46.b) LIRPF; imputación DIARIA si el contrato liquida a diario (V2115-21). NO art. 37.1.m',
   },
 }
 
@@ -414,6 +548,23 @@ export interface Apunte {
   /** Contravalor en euros. Obligatorio en tipos con relevancia fiscal. */
   contravalorEUR?: EuroDecimal
 
+  /**
+   * PERMUTA · art. 37.1.h) LIRPF — los DOS valores de mercado de la operación, en euros y
+   * a la fecha del apunte: el del bien o derecho ENTREGADO y el del RECIBIDO.
+   *
+   * La ley no cuantifica la permuta por lo recibido ni por lo entregado, sino por «el mayor
+   * de los dos siguientes: el valor de mercado del bien o derecho entregado; el valor de
+   * mercado del bien o derecho que se recibe a cambio». Ese mismo importe es, además, el
+   * coste del lote que nace con lo recibido (véase [MT] U6.4).
+   *
+   * Ambos son OPCIONALES y retrocompatibles: si no se rellenan, el motor cuantifica con
+   * `contravalorEUR` tal cual, que es el comportamiento anterior a esta regla. Cuando se
+   * rellenan, `valorPermutaEUR` (fifo.ts) toma el mayor y `contravalorEUR` debe coincidir
+   * con él —la validación lo comprueba y avisa si no.
+   */
+  valorMercadoEntregadoEUR?: EuroDecimal
+  valorMercadoRecibidoEUR?: EuroDecimal
+
   /** Referencia al Archivo (justificante). Enlaza Libro ↔ Archivo. */
   justificante?: string
 
@@ -421,6 +572,14 @@ export interface Apunte {
 
   /** AJUSTE: apunte al que rectifica (+ causa en notas). Obligatorio en AJUSTE. */
   rectificaA?: IdApunte
+
+  /**
+   * DONACIÓN y AJUSTE · resuelve los flags «según el caso» del catálogo (ver
+   * `SentidoApunte` y `resolverFlags`). Opcional y retrocompatible: un Libro anterior a la
+   * v1.6.0 se lee igual, con la diferencia de que ahora la validación avisa de las
+   * donaciones sin sentido en lugar de dejarlas descuadrar la cola FIFO en silencio.
+   */
+  sentido?: SentidoApunte
 
   // ── Dimensión DeFi (D1) ───────────────────────────────────────────────────
   // Los cuatro campos siguientes son ORTOGONALES al catálogo cerrado: nombran el
@@ -694,6 +853,11 @@ export interface ResultadoTransmision {
   saldoFifoInsuficiente?: boolean
   /** Cantidad transmitida que quedó sin lote de coste (0 si la cola cubría todo). */
   cantidadSinCoste?: CantidadDecimal
+  /**
+   * true si la transmisión es LUCRATIVA ínter vivos (donación entregada). La ganancia se
+   * computa; la pérdida NO (art. 33.5.c LIRPF). Lo aplica `fiscal.ts`.
+   */
+  lucrativa?: boolean
 }
 
 /** Totales de la cola FIFO de un activo. */

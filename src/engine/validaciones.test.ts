@@ -149,7 +149,7 @@ describe('validarApunte · AJUSTE y comisión', () => {
 })
 
 describe('validarApunte · decisión manual y casos borde', () => {
-  it('DONACIÓN emite aviso DONACION_MANUAL (no error)', () => {
+  it('DONACIÓN sin sentido → ERROR (es lo que separaba el saldo de la cola FIFO)', () => {
     const a = apunte({
       tipo: 'DONACION',
       activoSalida: 'BTC',
@@ -157,8 +157,33 @@ describe('validarApunte · decisión manual y casos borde', () => {
       contravalorEUR: '40000',
     })
     const avisos = validarApunte(a)
-    expect(tiene(avisos, 'DONACION_MANUAL')).toBe(true)
-    expect(avisos.find((x) => x.codigo === 'DONACION_MANUAL')?.nivel).toBe('aviso')
+    expect(tiene(avisos, 'DONACION_SIN_SENTIDO')).toBe(true)
+    expect(avisos.find((x) => x.codigo === 'DONACION_SIN_SENTIDO')?.nivel).toBe('error')
+  })
+
+  it('DONACIÓN ENTREGADA → aviso con el criterio de los arts. 36 y 33.5.c LIRPF', () => {
+    const a = apunte({
+      tipo: 'DONACION',
+      sentido: 'entregada',
+      activoSalida: 'BTC',
+      cantidadSalida: '1',
+      contravalorEUR: '40000',
+    })
+    const avisos = validarApunte(a)
+    expect(tiene(avisos, 'DONACION_SIN_SENTIDO')).toBe(false)
+    expect(tiene(avisos, 'DONACION_ENTREGADA_LUCRATIVA')).toBe(true)
+    expect(avisos.find((x) => x.codigo === 'DONACION_ENTREGADA_LUCRATIVA')?.nivel).toBe('aviso')
+  })
+
+  it('AJUSTE con cantidades y sin sentido → aviso de que no mueve la cola', () => {
+    const a = apunte({
+      tipo: 'AJUSTE',
+      rectificaA: '2024-001',
+      activoSalida: 'BTC',
+      cantidadSalida: '0.1',
+      contravalorEUR: '4000',
+    })
+    expect(tiene(validarApunte(a), 'AJUSTE_CON_CANTIDADES')).toBe(true)
   })
 
   it('AJUSTE emite aviso AJUSTE_MANUAL además del bloqueo por rectificaA', () => {

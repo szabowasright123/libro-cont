@@ -327,9 +327,16 @@ export interface SolicitudPoolRetirada extends Comun, ConComision {
 /**
  * D1 · CIERRE de una posición en un derivado liquidado por diferencias.
  *
- * Ganancia o pérdida patrimonial de la base del ahorro (arts. 33.1 y 34). El art. 37.1.m
- * NO aplica: alcanza solo a los mercados regulados por el RD 1814/1991, y un perpetuo en un
- * exchange de criptoactivos queda fuera.
+ * Ganancia o pérdida patrimonial (art. 33.1), integrada en la base del ahorro por el art.
+ * 46.b) LIRPF y compensable por el art. 49.1.b) y 2. El art. 37.1.m NO aplica: alcanza solo a
+ * los contratos negociados en mercados organizados y sigue citando el derogado RD 1814/1991
+ * (sucesión: 1282/2010 → 1464/2018 → 814/2023); un perpetuo de exchange queda fuera.
+ *
+ * IMPUTACIÓN TEMPORAL (revisión 20-8-2026). Si el contrato liquida periódicamente —y un
+ * perpetuo liquida funding cada ocho horas— la ganancia o pérdida se obtiene DIARIAMENTE,
+ * «aun cuando la posición contractual no se hubiese cerrado al finalizar dicho período
+ * impositivo» (art. 14.1.c LIRPF; DGT V2115-21). Esta plantilla descompone UN corte de
+ * liquidación: una posición viva a 31-12 exige un apunte por corte, no uno solo al cierre.
  *
  * Con resultado POSITIVO se genera una sola pata LIQUIDACION_DERIVADO, que abre lote por lo
  * acreditado. Con resultado NEGATIVO se generan DOS, que es el «doble efecto» que el manual
@@ -734,8 +741,10 @@ function cerrarDerivado(s: SolicitudDerivado): Pata[] {
       : {}),
     notas:
       s.notas ??
-      'Resultado neto liquidado por la plataforma. GyP de la base del ahorro (arts. 33.1 y ' +
-        '34 LIRPF). El art. 37.1.m no aplica: alcanza solo a los mercados del RD 1814/1991.',
+      'Resultado neto liquidado por la plataforma. GyP patrimonial (art. 33.1), base del ahorro ' +
+        'por el art. 46.b) LIRPF. Imputación diaria si el contrato liquida a diario (V2115-21). ' +
+        'El art. 37.1.m no aplica: alcanza solo a mercados organizados y remite al derogado ' +
+        'RD 1814/1991 (hoy RD 814/2023).',
   }
 
   if (neto.greaterThanOrEqualTo(0) || !s.activo || !s.cantidad) return [liquidacion]

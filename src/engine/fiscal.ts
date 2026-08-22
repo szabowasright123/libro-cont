@@ -3,7 +3,7 @@
  *
  * Fuente de verdad de los NÚMEROS: el motor FIFO (`fifo.ts`) y los apuntes del diario.
  * Este módulo NO calcula nada nuevo de FIFO: reparte las transmisiones y los ingresos ya
- * calculados en los cinco cajones fiscales del taller y adjunta el estado probatorio de las
+ * calculados en las CINCO SALIDAS del registro ([MT] U9.1) y adjunta el estado probatorio de las
  * pérdidas. Las cifras reconcilian con los golden del FIFO (criterio de aceptación P7).
  *
  * ─────────────────────────────────────────────────────────────────────────────
@@ -66,7 +66,24 @@ export const MARCADOR_TEXTO = '{{TEXTO-MANUAL}}' as const
 /** Umbral informativo del modelo 721 (saldo en el extranjero a 31/12). Solo aviso. */
 export const UMBRAL_721_EUR = 50000
 
+/**
+ * Motivo por el que una pérdida de donación entregada no se computa. Es CITA NORMATIVA
+ * literal del art. 33.5.c LIRPF (Ley 35/2006, BOE-A-2006-20764, texto consolidado
+ * verificado contra el BOE el 21-8-2026), no una calificación redactada por la app: la
+ * Regla de oro 5 prohíbe parafrasear criterios, no citar la ley.
+ */
+export const MOTIVO_33_5_C =
+  'Art. 33.5.c) LIRPF: «No se computarán como pérdidas patrimoniales las siguientes: […] c) Las debidas a transmisiones lucrativas por actos ínter vivos o a liberalidades.» La ganancia, en cambio, sí se computa.'
+
 /** Los cinco cajones fiscales del resumen. */
+/**
+ * Los cajones en los que el motor reparte el ejercicio. Son SEIS claves para CINCO SALIDAS
+ * del registro: `derivados` no es una base imponible distinta, sino una subdivisión de la
+ * primera salida —ganancias y pérdidas patrimoniales de la base del ahorro— que se separa
+ * porque una liquidación por diferencias no consume lote FIFO y su trazabilidad es otra
+ * (no hay transmisión del subyacente que casar con una adquisición). Al presentarlo y al
+ * declararlo, `ahorro` y `derivados` van al mismo apartado. Ver [MT] U9.1 y Anexo C.
+ */
 export type ConceptoFiscal =
   | 'ahorro'
   | 'derivados'
@@ -103,7 +120,14 @@ export const CONCEPTOS_FISCALES: Readonly<Record<ConceptoFiscal, DefinicionConce
     clave: 'ahorro',
     etiqueta: 'Ganancias y pérdidas por transmisión',
     baseImponible: 'Base imponible del ahorro',
-    tipos: ['VENTA', 'PERMUTA', 'PAGO'],
+    // DONACIÓN entra desde la v1.6.0: la donación ENTREGADA es transmisión lucrativa ínter
+    // vivos y, por tanto, alteración patrimonial en el DONANTE. Se valora por las normas
+    // del ISD sin exceder el valor de mercado (art. 36 LIRPF, verificado contra el BOE el
+    // 21-8-2026) y su eventual PÉRDIDA no se computa (art. 33.5.c LIRPF, literal: «No se
+    // computarán como pérdidas patrimoniales las siguientes: […] c) Las debidas a
+    // transmisiones lucrativas por actos ínter vivos o a liberalidades»). La donación
+    // RECIBIDA no entra: en el donatario no hay renta en el IRPF, tributa por el ISD.
+    tipos: ['VENTA', 'PERMUTA', 'PAGO', 'DONACION'],
     explicacion:
       '«Alteraciones CON transmisión. La variación de valor aflora porque un elemento patrimonial sale del patrimonio […]. Se cuantifican por diferencia entre el valor de transmisión y el valor de adquisición (arts. 34 a 37 LIRPF) y se integran en la base imponible del ahorro (art. 46.b).» En las ventas parciales, la DGT «sostiene que las criptomonedas de un mismo tipo son bienes homogéneos y que […] se entienden transmitidas las adquiridas en primer lugar (el método FIFO; consultas V0975-22 y V2520-22)». La STSJ PV 37/2025, de 9-1-2025 (ROJ: STSJ PV 41/2025), rechazó ese planteamiento en territorio foral; «la sentencia no constituye jurisprudencia consolidada». — [MF] Unidad 3, «Alteraciones patrimoniales» y Unidad 1 (FIFO y controversia foral).',
     fechaCriterio:
@@ -115,9 +139,9 @@ export const CONCEPTOS_FISCALES: Readonly<Record<ConceptoFiscal, DefinicionConce
     baseImponible: 'Base imponible del ahorro',
     tipos: ['LIQUIDACION_DERIVADO'],
     explicacion:
-      '«Las ganancias o pérdidas de las operaciones apalancadas […] sí son alteraciones patrimoniales computables en la base del ahorro. En muchas plataformas, estas posiciones (futuros, CFD, perpetuos) no se calculan operación a operación por diferencia de valores de adquisición y transmisión, sino que se liquidan por el resultado neto que la propia plataforma arroja al cerrar la posición, y ese resultado es el que se integra.» Los intereses de la financiación «no son deducibles»: «no existe en el IRPF del inversor particular un cauce para restar el coste financiero de la inversión especulativa». Precisión de ámbito: el art. 37.1.m LIRPF —regla específica de futuros y opciones— alcanza solo a los mercados «regulados por el Real Decreto 1814/1991», de modo que un perpetuo en un exchange de criptoactivos queda fuera y se le aplica la regla general de los arts. 33.1 y 34. — [MF] Unidad 4, «Comisiones y apalancamiento».',
+      '«Las ganancias o pérdidas de las operaciones apalancadas […] sí son alteraciones patrimoniales computables en la base del ahorro. En muchas plataformas, estas posiciones (futuros, CFD, perpetuos) no se calculan operación a operación por diferencia de valores de adquisición y transmisión, sino que se liquidan por el resultado neto que la propia plataforma arroja, y ese resultado es el que se integra.» PRECISIONES de la revisión de 20-8-2026, ya incorporadas al [MT] U6.1 y U9.3: (i) la INTEGRACIÓN en la base del ahorro la manda el art. 46.b) LIRPF y la compensación el art. 49.1.b) y 2 —el 33.1 califica y el 34 cuantifica—, con el flanco de la ausencia de transmisión cubierto por las SSTS 803/2022 y 804/2022, de 21-6-2022 (rec. 7121/2020 y 7749/2020); (ii) la IMPUTACIÓN es DIARIA cuando el contrato liquida periódicamente, «aun cuando la posición contractual no se hubiese cerrado al finalizar dicho período impositivo» (art. 14.1.c LIRPF; V2115-21, reiterada en V2788-21 y V3183-20): un perpetuo liquida funding cada ocho horas, de modo que una posición abierta a 31-12 ya ha generado renta; (iii) sobre gastos, las comisiones de apertura y cierre computan, los intereses PAGADOS no, y los intereses PERCIBIDOS sí («un componente más a tener en cuenta», V2115-21); (iv) el art. 37.1.m sigue citando el derogado RD 1814/1991, cuya sucesión llega hoy al RD 814/2023 (1814/1991 → 1282/2010 → 1464/2018 → 814/2023), y en todo caso no alcanza a un perpetuo de exchange; (v) un derivado sobre cripto NO es un criptoactivo (MiCA art. 2.4.a y considerando 9), luego queda fuera del art. 37.1.h, del FIFO del art. 37.2 y de los modelos 172/173/721. — [MT] U6.1, U9.3 y Anexo C; [MF] Unidad 4, «Comisiones y apalancamiento».',
     fechaCriterio:
-      'Sin consulta de la DGT específica sobre derivados con subyacente cripto. Se aplica por analogía la línea de los contratos por diferencias: V0076-09, V0917-14, V0597-18, V2770-19, V0503-21, V2115-21 y V0885-21. Ámbito del art. 37.1.m: RD 1814/1991. Verificado a 16-8-2026.',
+      'Sin consulta de la DGT específica sobre derivados con subyacente cripto (barrido hasta ago-2026): es analogía con la línea de contratos por diferencias y NO ampara la protección del art. 89 LGT. Línea: V0076-09, V0597-18, V2770-19, V3183-20, V0503-21, V0885-21, V2115-21, V2788-21 (precedente para futuros, V3755-16). Se retira V0917-14: resolvía sobre el régimen de base general de 2013-2014, derogado desde 1-1-2015 por la Ley 16/2012. El riesgo real es probatorio: STSJ Andalucía (Málaga) ECLI:ES:TSJAND:2023:18410, de 12-12-2023, rechazó 208.501 € de pérdidas en CFD por falta de prueba. Verificado a 20-8-2026.',
   },
   rcm: {
     clave: 'rcm',
@@ -166,7 +190,7 @@ export const CONCEPTOS_FISCALES: Readonly<Record<ConceptoFiscal, DefinicionConce
  * como llamada de atención; nunca es un cálculo de la obligación (Regla de oro 5).
  */
 export const AVISO_721 =
-  '«El modelo 721 obliga a los residentes a declarar las monedas virtuales situadas en el extranjero, esto es, custodiadas por personas o entidades no residentes, cuando los saldos conjuntos superen los 50.000 euros, con plazo de presentación entre el 1 de enero y el 31 de marzo del ejercicio siguiente» (Ley 11/2021, RD 249/2023, OM HFP/886/2023 y HFP/887/2023). «La exclusión de la autocustodia no es solo interpretación doctrinal: la DGT la confirmó en la V2290-23, de 28-7-2023 […]; lo que está en monederos cuyas claves controla el contribuyente no computa ni se declara.» Doctrina posterior: V0941-24 (paper wallet, fuera del 721), V1012-25 (saldo determinante) y V1030-25 (años sucesivos tras ventas parciales). Este aviso es solo una llamada de atención calculada sobre las ubicaciones marcadas como extranjeras: no es un cálculo de la obligación. — [MF] Unidad 1, «Modelos 721/172/173» · [MT] Unidad 10, ap. 1.'
+  '«El modelo 721 obliga a los residentes a declarar las monedas virtuales situadas en el extranjero, esto es, custodiadas por personas o entidades no residentes, cuando los saldos conjuntos superen los 50.000 euros, con plazo de presentación entre el 1 de enero y el 31 de marzo del ejercicio siguiente» (Ley 11/2021, RD 249/2023, OM HFP/886/2023 y HFP/887/2023). «La exclusión de la autocustodia no es solo interpretación doctrinal.» La autoridad citada es triple y siempre en este orden: V2290-23, de 28-7-2023 (monederos «hot» y «cold»), que fija el criterio — las monedas cuyas claves controla el contribuyente «no se tendrían en cuenta en el cómputo de los saldos y, en consecuencia, no se informaría sobre las mismas» —; V0941-24, de 29-4-2024 (monedero de papel), que es la cita más precisa por su objeto; y las preguntas frecuentes del modelo 721 de la Sede electrónica de la AEAT, que reproducen ese mismo criterio y son la fuente oficial comprobable. Complementarias: V2185-23, de 25-7-2023 (el saldo en moneda fiduciaria en un exchange extranjero NO va al 721, sino al bloque de cuentas del modelo 720), V2304-23, de 1-8-2023 (sin obligación por debajo de 50.000 €), V1012-25 (saldo determinante) y V1030-25 (años sucesivos tras ventas parciales). Cotejado a 19-8-2026 ([MT] Anexo VI, tercera ronda). Este aviso es solo una llamada de atención calculada sobre las ubicaciones marcadas como extranjeras: no es un cálculo de la obligación. — [MF] Unidad 1, «Modelos 721/172/173» · [MT] Unidad 10, ap. 1.'
 
 /**
  * NOTA_172_173 — texto informativo literal de los modelos 172 (saldos) y 173 (operaciones),
@@ -217,6 +241,15 @@ export interface DetalleTransmision {
   ganancia: boolean
   /** true si el FIFO no tenía lotes suficientes (resultado inflado; aviso). */
   saldoFifoInsuficiente?: boolean
+  /**
+   * true si el resultado es NEGATIVO y la pérdida NO se computa. Único supuesto que el
+   * motor aplica hoy: la transmisión lucrativa ínter vivos del art. 33.5.c LIRPF (donación
+   * entregada). La línea sigue apareciendo en el desglose —el hecho existió y hay que
+   * poder verlo— pero no suma al total de pérdidas.
+   */
+  perdidaNoComputable?: boolean
+  /** Norma por la que no se computa, para mostrarla junto a la línea. */
+  motivoNoComputable?: string
 }
 
 /** Cajón del ahorro: transmisiones onerosas con su neto. */
@@ -228,6 +261,12 @@ export interface BloqueAhorro {
   perdidasEUR: string
   /** Neto = ganancias + pérdidas (signed). */
   netoEUR: string
+  /**
+   * Suma (signo negativo) de las pérdidas EXCLUIDAS por norma, hoy solo las del
+   * art. 33.5.c LIRPF. No entra en `netoEUR`: es informativa, para que el alumno vea que
+   * el motor las ha visto y por qué no las ha computado.
+   */
+  perdidasNoComputablesEUR: string
 }
 
 /** Una partida de ingreso (RCM / actividad económica / base general) a contravalor del día. */
@@ -374,6 +413,7 @@ function calcularAhorro(
   const operaciones: DetalleTransmision[] = []
   let ganancias = CERO
   let perdidas = CERO
+  let noComputables = CERO
 
   for (const t of transmisiones) {
     if (t.ejercicio !== ejercicio) continue
@@ -381,7 +421,11 @@ function calcularAhorro(
     if (!tipo || !tiposAhorro.has(tipo)) continue
     const resultado = D(t.resultadoEUR)
     const ganancia = resultado.greaterThanOrEqualTo(0)
+    // Art. 33.5.c LIRPF: la pérdida de una transmisión lucrativa ínter vivos no se computa.
+    // La ganancia sí, y por eso la exclusión se comprueba solo en el lado negativo.
+    const noComputable = !ganancia && t.lucrativa === true
     if (ganancia) ganancias = ganancias.plus(resultado)
+    else if (noComputable) noComputables = noComputables.plus(resultado)
     else perdidas = perdidas.plus(resultado)
     operaciones.push({
       apunteId: t.apunteId,
@@ -394,6 +438,12 @@ function calcularAhorro(
       resultadoEUR: t.resultadoEUR,
       ganancia,
       ...(t.saldoFifoInsuficiente ? { saldoFifoInsuficiente: true } : {}),
+      ...(noComputable
+        ? {
+            perdidaNoComputable: true,
+            motivoNoComputable: MOTIVO_33_5_C,
+          }
+        : {}),
     })
   }
 
@@ -403,6 +453,7 @@ function calcularAhorro(
     gananciasEUR: aCadena(ganancias),
     perdidasEUR: aCadena(perdidas),
     netoEUR: aCadena(ganancias.plus(perdidas)),
+    perdidasNoComputablesEUR: aCadena(noComputables),
   }
 }
 

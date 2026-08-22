@@ -41,7 +41,9 @@ function just(apunteId: string, clave: string, extra: Partial<Justificante> = {}
 }
 
 describe('checklist probatoria', () => {
-  it('tiene una entrada por cada uno de los 11 tipos y una ruta por defecto', () => {
+  it('tiene una entrada por cada uno de los 12 tipos y una ruta por defecto', () => {
+    expect(Object.keys(CHECKLIST_PROBATORIA)).toHaveLength(12)
+    expect(CHECKLIST_PROBATORIA.LIQUIDACION_DERIVADO.requisitos.length).toBeGreaterThan(0)
     for (const tipo of Object.keys(CHECKLIST_PROBATORIA) as Apunte['tipo'][]) {
       expect(CHECKLIST_PROBATORIA[tipo].requisitos.length).toBeGreaterThan(0)
       expect(RUTA_POR_TIPO[tipo]).toBeDefined()

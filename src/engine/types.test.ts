@@ -44,9 +44,9 @@ describe('Catálogo cerrado de tipos de operación (DOMINIO §3.3)', () => {
     }
   })
 
-  it('COMPRA: cuadra, no altera, abre lote y no consume (fija lote FIFO)', () => {
+  it('COMPRA: es simétrica, no altera, abre lote y no consume (fija lote FIFO)', () => {
     const c = CATALOGO_TIPOS.COMPRA
-    expect(c.cuadra).toBe(true)
+    expect(c.simetrico).toBe(true)
     expect(c.alteracion).toBe(false)
     expect(c.abreLote).toBe(true)
     expect(c.consumeLote).toBe(false)
@@ -69,7 +69,7 @@ describe('Catálogo cerrado de tipos de operación (DOMINIO §3.3)', () => {
   it('RENDIMIENTO, MINERÍA y AIRDROP: abren lote pero NO cuadran', () => {
     for (const tipo of ['RENDIMIENTO', 'MINERIA', 'AIRDROP'] as const) {
       expect(CATALOGO_TIPOS[tipo].abreLote).toBe(true)
-      expect(CATALOGO_TIPOS[tipo].cuadra).toBe(false)
+      expect(CATALOGO_TIPOS[tipo].simetrico).toBe(false)
     }
   })
 
@@ -77,7 +77,7 @@ describe('Catálogo cerrado de tipos de operación (DOMINIO §3.3)', () => {
     expect(CATALOGO_TIPOS.DONACION.requiereDecisionManual).toBe(true)
     expect(CATALOGO_TIPOS.AJUSTE.requiereDecisionManual).toBe(true)
     expect(CATALOGO_TIPOS.AJUSTE.exigeRectificaA).toBe(true)
-    expect(CATALOGO_TIPOS.AJUSTE.cuadra).toBe('segun')
+    expect(CATALOGO_TIPOS.AJUSTE.simetrico).toBe('segun')
   })
 })
 

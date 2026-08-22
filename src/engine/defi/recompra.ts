@@ -12,9 +12,9 @@
  * TRES PRECISIONES que el manual subraya y que este módulo respeta al pie de la letra:
  *
  *  1. La letra e) opera sobre cualquier «elemento patrimonial», SIN exigencia de
- *     homogeneidad. Las letras f) y g) se refieren a valores, y la propia DGT admite en la
- *     V0525-25 que las criptomonedas no lo son: por eso aquí NO aplican, y los plazos de
- *     dos meses (cotizados) y un año (no cotizados) de esas letras son irrelevantes.
+ *     homogeneidad. Las letras f) y g) se refieren a valores, condición que no se predica
+ *     de los criptoactivos: por eso aquí NO aplican, y los plazos de dos meses (cotizados)
+ *     y un año (no cotizados) de esas letras son irrelevantes.
  *
  *  2. La letra e) SOLO MIRA HACIA DELANTE: «dentro del año siguiente a la fecha de dicha
  *     transmisión». Una compra ANTERIOR a la venta no activa por sí sola el diferimiento.
@@ -24,6 +24,16 @@
  *     EQUIVALENTES del mismo activo (criterio del autor 16-08-2026). El manual señala que
  *     esta es «la discusión técnica real» y no la cierra; la app aplica la lectura amplia,
  *     que es la que la Administración tiene a su favor.
+ *
+ *  4. LOS DERIVADOS QUEDAN FUERA (V2770-19, 9-10-2019; precedente para futuros, V3755-16).
+ *     La DGT ha declarado que las letras e), f) y g) del art. 33.5 no se aplican a los
+ *     contratos por diferencias, por doble motivo: no son valores —decaen f) y g)— y no son
+ *     elementos susceptibles de ser transmitidos y posteriormente adquiridos —decae la e)—.
+ *     Aquí se cumple SIN CÓDIGO ADICIONAL, y conviene saber por qué: LIQUIDACION_DERIVADO
+ *     tiene `consumeLote: false`, de modo que nunca produce una transmisión en la cola FIFO
+ *     y su resultado negativo jamás entra en el bucle de `detectarRecompras`. La pérdida de
+ *     un CFD no se difiere aunque se reabra posición al día siguiente. Test que lo fija:
+ *     «una pérdida en derivados no se difiere aunque se reabra posición» (fases-d3-d6).
  *
  * AVISA, NO BLOQUEA (criterio del autor). El manual advierte de que el terreno «no es 100 %
  * seguro» y de que existen además las cláusulas generales de la LGT (arts. 13, 15 y 16).

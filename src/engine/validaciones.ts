@@ -12,10 +12,19 @@
  * Determinista y TypeScript puro (Regla de oro 4). No lanza: acumula avisos.
  */
 
-import { type Apunte, type IdApunte, CATALOGO_TIPOS, ETIQUETA_EVENTO, esZonaGris } from './types'
+import {
+  type Activo,
+  type Apunte,
+  type IdApunte,
+  type Tolerancias,
+  CATALOGO_TIPOS,
+  ETIQUETA_EVENTO,
+  esZonaGris,
+} from './types'
 import { D } from './decimal'
-import { calcularFifo } from './fifo'
+import { calcularFifo, valorPermutaEUR } from './fifo'
 import { esCompraContraCredito } from './defi/plantillas'
+import { conciliarFifoSaldos, TEXTO_MOTIVO } from './conciliacion'
 
 /** Nivel de severidad de un aviso de validación. */
 export type NivelAviso = 'error' | 'aviso'
@@ -77,6 +86,29 @@ export function validarApunte(ap: Apunte): Aviso[] {
       if (ap.activoEntrada && ap.activoSalida && ap.activoEntrada === ap.activoSalida) {
         push('error', 'ENTRADA_IGUAL_SALIDA', `${ap.tipo}: entrada y salida no pueden ser el mismo activo.`)
       }
+      // Art. 37.1.h) LIRPF: la permuta se cuantifica por el MAYOR de los dos valores de
+      // mercado. Se avisa (nunca se bloquea) cuando falta uno de los dos, y se corrige el
+      // contravalor cuando el declarado no es el mayor. Ver [MT] U6.4.
+      if (ap.tipo === 'PERMUTA') {
+        const entregado = ap.valorMercadoEntregadoEUR
+        const recibido = ap.valorMercadoRecibidoEUR
+        if (!entregado || !recibido) {
+          push(
+            'aviso',
+            'PERMUTA_UN_SOLO_VALOR',
+            'PERMUTA: el art. 37.1.h) LIRPF cuantifica por el MAYOR entre el valor de mercado de lo entregado y el de lo recibido. Declara los dos para dejar constancia de cuál se aplicó.',
+          )
+        } else {
+          const mayor = valorPermutaEUR(ap)
+          if (ap.contravalorEUR && !D(ap.contravalorEUR).equals(mayor)) {
+            push(
+              'aviso',
+              'PERMUTA_CONTRAVALOR_NO_ES_EL_MAYOR',
+              `PERMUTA: el contravalor declarado (${ap.contravalorEUR} €) no coincide con el mayor de los dos valores de mercado (${mayor.toString()} €), que es el que aplica el art. 37.1.h) LIRPF y el que el motor ha usado.`,
+            )
+          }
+        }
+      }
       break
 
     case 'VENTA':
@@ -127,13 +159,39 @@ export function validarApunte(ap: Apunte): Aviso[] {
       break
 
     case 'DONACION':
-      // Requiere decisión manual: solo avisamos.
-      push('aviso', 'DONACION_MANUAL', 'DONACIÓN requiere decisión manual del sentido y tratamiento fiscal.')
+      // El sentido NO es un detalle de forma: decide si la cola FIFO se mueve. Sin él, el
+      // saldo baja y las existencias de la cola no, y el descuadre no lo caza el CUADRE.
+      if (!ap.sentido) {
+        push(
+          'error',
+          'DONACION_SIN_SENTIDO',
+          'DONACIÓN: indica si es ENTREGADA o RECIBIDA. Mientras no se indique, el motor no ' +
+            'mueve la cola FIFO y las existencias quedan por encima del saldo real.',
+        )
+      } else if (ap.sentido === 'entregada') {
+        push(
+          'aviso',
+          'DONACION_ENTREGADA_LUCRATIVA',
+          'DONACIÓN ENTREGADA: transmisión lucrativa ínter vivos. Se valora por las normas ' +
+            'del ISD sin exceder el valor de mercado (art. 36 LIRPF); la ganancia se computa ' +
+            'y la pérdida NO (art. 33.5.c LIRPF). El donatario liquida el ISD.',
+        )
+      }
       break
 
     case 'AJUSTE':
-      // Requiere decisión manual + rectificaA (se comprueba abajo).
+      // Requiere decisión manual + rectificaA (se comprueba abajo). Por defecto solo
+      // corrige saldos; si además arrastra cantidades, hay que decirlo explícitamente.
       push('aviso', 'AJUSTE_MANUAL', 'AJUSTE/RECTIFICACIÓN requiere revisión manual.')
+      if (!ap.sentido && (tieneEntrada(ap) || tieneSalida(ap))) {
+        push(
+          'aviso',
+          'AJUSTE_CON_CANTIDADES',
+          'AJUSTE con cantidades: por defecto corrige SALDOS y no toca la cola FIFO. Si lo ' +
+            'que cambia son existencias reales, el apunte correcto es el de su tipo ' +
+            '(COMPRA, VENTA, PÉRDIDA…). Si aun así debe mover la cola, marca el sentido.',
+        )
+      }
       break
   }
 
@@ -199,7 +257,11 @@ export function validarApunte(ap: Apunte): Aviso[] {
  * «consumo sin saldo FIFO suficiente» (venta/pago/pérdida que agota la cola del activo).
  * Requiere el diario en orden cronológico (lo exige `calcularFifo`).
  */
-export function validarDiario(apuntes: Apunte[]): Aviso[] {
+export function validarDiario(
+  apuntes: Apunte[],
+  tol?: Tolerancias,
+  activos?: readonly Activo[],
+): Aviso[] {
   const avisos: Aviso[] = []
   for (const ap of apuntes) avisos.push(...validarApunte(ap))
 
@@ -218,6 +280,23 @@ export function validarDiario(apuntes: Apunte[]): Aviso[] {
         })
       }
     }
+  }
+
+  // Conciliación FIFO ↔ SALDOS. Es la comprobación que faltaba: el CUADRE mira hacia
+  // fuera (contra el exchange) y no puede ver un error de clasificación que deja la cola
+  // por encima del saldo. Ver `conciliacion.ts` y [MT] U6.2 «el error invisible».
+  const conc = conciliarFifoSaldos(apuntes, { tolerancias: tol, activos })
+  for (const fila of conc.filas) {
+    if (fila.estado === 'OK') continue
+    avisos.push({
+      nivel: fila.estado === 'ERROR' ? 'error' : 'aviso',
+      codigo: 'CONCILIACION_FIFO_SALDOS',
+      mensaje:
+        `${fila.activo}: las existencias vivas de la cola FIFO (${fila.existenciasFifo}) no ` +
+        `coinciden con la suma de saldos (${fila.saldoTotal}); diferencia ${fila.diferencia}. ` +
+        fila.motivos.map((m) => TEXTO_MOTIVO[m]).join(' '),
+      ...(fila.apuntesImplicados[0] ? { apunteId: fila.apuntesImplicados[0] } : {}),
+    })
   }
 
   return avisos

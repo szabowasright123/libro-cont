@@ -1,7 +1,8 @@
 /**
  * fiscal.test.ts — resumen fiscal orientativo del mini-caso 2024.
  *
- * Verifica que el reparto en cajones (ahorro / RCM / actividad / base general / pérdidas)
+ * Verifica que el reparto en cajones (ahorro y derivados / RCM / actividad / base general /
+ * pérdidas: seis claves para las cinco salidas de [MT] U9.1)
  * CUADRA con los golden del FIFO (tests/golden/fifo.test.ts): el neto del ahorro más el
  * total de pérdidas reproduce el total de GyP del diario (4.525,10 €). No inventa cifras:
  * todas salen del motor FIFO y de los contravalores del mini-caso.
@@ -204,8 +205,10 @@ describe('fiscal · textos manuales (Regla de oro 5)', () => {
       expect(c.fechaCriterio).not.toBe(MARCADOR_TEXTO)
       expect(c.explicacion.length).toBeGreaterThan(0)
       // La fecha de criterio lleva la marca de verificación del responsable. Los cajones
-      // originales se verificaron el 6-8-2026; el de derivados nació con D6, el 16-8-2026.
-      expect(c.fechaCriterio).toMatch(/Verificado a (6|16)-8-2026/)
+      // originales se verificaron el 6-8-2026; el de derivados nació el 16-8 y se
+      // revisó el 20-8-2026 (base 46.b, imputación diaria, intereses percibidos, MiCA).
+      // Redacción previa: con D6, el 16-8-2026.
+      expect(c.fechaCriterio).toMatch(/Verificado a (6|16|20)-8-2026/)
     }
   })
 

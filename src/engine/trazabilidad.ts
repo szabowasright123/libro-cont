@@ -25,8 +25,8 @@ import {
   type RefUbicacion,
   type SimboloActivo,
   type Ubicacion,
-  CATALOGO_TIPOS,
   UBICACION_EXTERIOR,
+  resolverFlags,
 } from './types'
 import { D, aCadena, CERO, Decimal } from './decimal'
 import {
@@ -333,7 +333,7 @@ export function calcularTrazabilidad(
     if (corteMs !== undefined && new Date(ap.fechaHora).getTime() > corteMs) continue
 
     const esTransferencia = ap.tipo === 'TRANSFERENCIA'
-    const abre = CATALOGO_TIPOS[ap.tipo].abreLote === true
+    const abre = resolverFlags(ap).abreLote
     const origenReal = ap.ubicacionOrigen !== UBICACION_EXTERIOR
     const destinoReal = ap.ubicacionDestino !== UBICACION_EXTERIOR
 

@@ -18,6 +18,11 @@
  * Resultado por transmisión = valor neto − coste FIFO (columna P = O − N).
  * Totales de cola: adquirido (C), consumido (L), restante y su coste.
  *
+ * VALORACIÓN DE LA PERMUTA (art. 37.1.h LIRPF). La permuta no se cuantifica por lo
+ * recibido ni por lo entregado, sino por el MAYOR de los dos valores de mercado, y ese
+ * importe es también el coste del lote que nace. Lo resuelve `valorPermutaEUR`, que se
+ * usa en el cierre de la transmisión y en la apertura del lote. Ver [MT] U6.4.
+ *
  * COMISIONES EN CRIPTO (fase D0 — criterio del autor 16-08-2026, docs/DEFI_EVENTOS_COMPLEJOS.md §8).
  * Este punto se APARTA deliberadamente de la plantilla, que no consumía cola por las
  * comisiones pagadas en cripto y dejaba divergir el restante FIFO del saldo real. Reglas:
@@ -56,13 +61,39 @@ import {
   type ConsumoFifo,
   type ResultadoTransmision,
   type ColaFifoResumen,
-  CATALOGO_TIPOS,
+  resolverFlags,
+  esTransmisionLucrativa,
 } from './types'
 import { D, aCadena, CERO, Decimal } from './decimal'
 
 /** Comisión en EUR del apunte (0 si la comisión no es en EUR o no hay). */
 function comisionEUR(ap: Apunte): Decimal {
   return ap.comisionActivo === 'EUR' && ap.comisionCantidad ? D(ap.comisionCantidad) : CERO
+}
+
+/**
+ * Valor en euros con el que se cuantifica el apunte, ANTES de comisiones.
+ *
+ * Regla general: el contravalor declarado. Excepción de la PERMUTA (art. 37.1.h LIRPF):
+ * la ganancia o pérdida se determina «por la diferencia entre el valor de adquisición del
+ * bien o derecho que se cede y el mayor de los dos siguientes: el valor de mercado del
+ * bien o derecho entregado; el valor de mercado del bien o derecho que se recibe a
+ * cambio». Se toma, por tanto, el MAYOR de los valores declarados, y ese mismo importe es
+ * después el coste del lote que nace con lo recibido ([MT] U6.4).
+ *
+ * Retrocompatible: si el apunte no trae los dos valores de mercado —el caso de todo libro
+ * anterior a esta regla—, el máximo se calcula sobre `contravalorEUR` solo y el resultado
+ * es idéntico al de antes.
+ */
+export function valorPermutaEUR(ap: Apunte): Decimal {
+  if (ap.tipo !== 'PERMUTA') return D(ap.contravalorEUR)
+  const declarados = [
+    ap.contravalorEUR,
+    ap.valorMercadoEntregadoEUR,
+    ap.valorMercadoRecibidoEUR,
+  ].filter((v): v is string => v !== undefined && v !== '')
+  if (declarados.length === 0) return CERO
+  return declarados.map(D).reduce((a, b) => (b.greaterThan(a) ? b : a))
 }
 
 /** Lote vivo en la cola (mutable durante el recorrido). */
@@ -321,9 +352,12 @@ function calcularFifoTodos(apuntes: Apunte[]): Map<SimboloActivo, ResultadoFifoA
   }
 
   for (const ap of apuntes) {
-    const def = CATALOGO_TIPOS[ap.tipo]
-    const transmite = def.consumeLote === true && !!ap.activoSalida && !!ap.cantidadSalida
-    const adquiere = def.abreLote === true && !!ap.activoEntrada && !!ap.cantidadEntrada
+    // Los flags se leen SIEMPRE resueltos para este apunte: el catálogo marca DONACIÓN y
+    // AJUSTE con `'segun'`, y compararlos con `=== true` equivalía a resolver el «según el
+    // caso» como «no» en silencio, dejando la cola FIFO por encima del saldo real.
+    const flags = resolverFlags(ap)
+    const transmite = flags.consumeLote && !!ap.activoSalida && !!ap.cantidadSalida
+    const adquiere = flags.abreLote && !!ap.activoEntrada && !!ap.cantidadEntrada
 
     // 1. Consumo por transmisión.
     let retiradaTransmision: Retirada | null = null
@@ -345,7 +379,7 @@ function calcularFifoTodos(apuntes: Apunte[]): Map<SimboloActivo, ResultadoFifoA
     // 3. Cierre de la transmisión. El coste FIFO de la comisión minora el valor de
     //    transmisión (gasto inherente, art. 35.2 LIRPF) — D0, regla 3.
     if (retiradaTransmision && cantidadTransmitida.greaterThan(0)) {
-      const valorNeto = D(ap.contravalorEUR).minus(comisionEUR(ap)).minus(costeComision)
+      const valorNeto = valorPermutaEUR(ap).minus(comisionEUR(ap)).minus(costeComision)
       const resultado = valorNeto.minus(retiradaTransmision.costeFifo)
       const t: ResultadoTransmision = {
         apunteId: ap.id,
@@ -362,6 +396,10 @@ function calcularFifoTodos(apuntes: Apunte[]): Map<SimboloActivo, ResultadoFifoA
         t.saldoFifoInsuficiente = true
         t.cantidadSinCoste = aCadena(retiradaTransmision.sinCoste)
       }
+      // Donación ENTREGADA: transmisión lucrativa ínter vivos. La ganancia se computa; la
+      // pérdida no (art. 33.5.c LIRPF). El motor la calcula igual y la marca; quien decide
+      // qué hacer con ella es `fiscal.ts`.
+      if (esTransmisionLucrativa(ap)) t.lucrativa = true
       cola(ap.activoSalida!).transmisiones.push(t)
     }
 
@@ -372,7 +410,7 @@ function calcularFifoTodos(apuntes: Apunte[]): Map<SimboloActivo, ResultadoFifoA
     if (adquiere) {
       const cantidad = D(ap.cantidadEntrada)
       if (cantidad.greaterThan(0)) {
-        const coste = D(ap.contravalorEUR)
+        const coste = valorPermutaEUR(ap)
           .plus(comisionEUR(ap))
           .plus(transmite ? CERO : costeComision)
         const c = cola(ap.activoEntrada!)
@@ -409,8 +447,9 @@ function calcularFifoTodos(apuntes: Apunte[]): Map<SimboloActivo, ResultadoFifoA
 export function activosConCola(apuntes: Apunte[]): SimboloActivo[] {
   const set = new Set<SimboloActivo>()
   for (const ap of apuntes) {
-    if (CATALOGO_TIPOS[ap.tipo].abreLote === true && ap.activoEntrada) set.add(ap.activoEntrada)
-    if (CATALOGO_TIPOS[ap.tipo].consumeLote === true && ap.activoSalida) set.add(ap.activoSalida)
+    const flags = resolverFlags(ap)
+    if (flags.abreLote && ap.activoEntrada) set.add(ap.activoEntrada)
+    if (flags.consumeLote && ap.activoSalida) set.add(ap.activoSalida)
     // Desde D0, la comisión pagada en cripto también consume cola de su activo.
     const com = comisionCripto(ap)
     if (com) set.add(com.activo)

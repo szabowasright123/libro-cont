@@ -30,9 +30,9 @@ Extraído 1:1 de la PLANTILLA_TALLER.xlsx (verificada: 2.486 fórmulas, sin macr
 
 ### 3.3 Catálogo cerrado de tipos (PARÁMETROS, Tabla 7 del manual)
 
-Doce tipos desde la fase D6 (16-8-2026). Los once primeros son la Tabla 7 literal; el duodécimo lo añadió el autor al comprobar que los derivados liquidados por diferencias no encajaban en ninguno (ver `docs/DEFI_EVENTOS_COMPLEJOS.md` §7). El manual se actualiza aparte.
+Doce tipos desde la fase D6 (16-8-2026). Los once primeros son la Tabla 7 literal; el duodécimo lo añadió el autor al comprobar que los derivados liquidados por diferencias no encajaban en ninguno (ver `docs/DEFI_EVENTOS_COMPLEJOS.md` §7). **Al día con el manual V7 (20-8-2026).** El manual recoge el 12.º tipo en la Tabla 7 y lo desarrolla en el **Anexo C (tabla maestra del catálogo cerrado)**, que es el espejo de esta tabla: cualquier divergencia entre ambas es un bug. La columna «¿Cuadra?» se llama **«¿Simétrica?»** desde la v1.4.0, aquí y en Parámetros.
 
-| Tipo | ¿Cuadra? | ¿Alteración? | ¿Abre lote? | ¿Consume lote? | Calificación fiscal |
+| Tipo | ¿Simétrica? | ¿Alteración? | ¿Abre lote? | ¿Consume lote? | Calificación fiscal |
 |---|---|---|---|---|---|
 | COMPRA | Sí | No | **Sí** | No | Sin hecho imponible; fija lote FIFO |
 | VENTA | Sí | Sí | No | **Sí** | GyP patrimonial, base del ahorro |
@@ -45,7 +45,7 @@ Doce tipos desde la fase D6 (16-8-2026). Los once primeros son la Tabla 7 litera
 | PÉRDIDA | No | Sí | No | **Sí** | Pérdida condicionada a requisitos y prueba (dualidad DGT) |
 | DONACIÓN | Según sentido | Sí | Según | Según | Entregada: alteración en donante; recibida: ISD |
 | AJUSTE/RECTIFICACIÓN | Según | Según | Según | Según | — (exige referencia y causa) |
-| **LIQUIDACIÓN DE DERIVADO** | No | Sí | **Sí** | No | GyP patrimonial, base del ahorro (arts. 33.1 y 34; **no** art. 37.1.m, que alcanza solo a los mercados del RD 1814/1991) |
+| **LIQUIDACIÓN DE DERIVADO** | No | Sí | **Sí** | No | GyP patrimonial (art. 33.1), base del ahorro por el **art. 46.b)** LIRPF; compensación art. 49.1.b) y 2. **Imputación DIARIA** si el contrato liquida a diario (V2115-21). **No** art. 37.1.m, que alcanza solo a mercados organizados y remite al derogado RD 1814/1991 (hoy RD 814/2023) |
 
 DONACIÓN y AJUSTE requieren decisión manual (la app pregunta); el resto se automatiza. LIQUIDACIÓN DE DERIVADO nunca tiene lado de salida: en una liquidación por diferencias no se entrega el subyacente, y si la posición se salda entregando un activo, esa entrega es una pata PAGO independiente.
 

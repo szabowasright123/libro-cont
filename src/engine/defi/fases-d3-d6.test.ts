@@ -503,3 +503,42 @@ describe('D6 · el tipo nuevo rechaza lo que no le corresponde', () => {
     expect(avisos.some((a) => a.codigo === 'DERIVADO_CON_SALIDA' && a.nivel === 'error')).toBe(true)
   })
 })
+
+// ════════════════════════════════════════════════════════════════════════════
+// D6 bis · el art. 33.5 no alcanza a los derivados (V2770-19) — revisión 20-8-2026
+// ════════════════════════════════════════════════════════════════════════════
+
+describe('D6 · una pérdida en derivados no se difiere aunque se reabra posición', () => {
+  // La DGT (V2770-19, con precedente para futuros en V3755-16) declara que las letras e),
+  // f) y g) del art. 33.5 no se aplican a los contratos por diferencias: no son valores y
+  // no son elementos susceptibles de ser transmitidos y posteriormente adquiridos. El motor
+  // lo cumple por construcción —LIQUIDACION_DERIVADO tiene `consumeLote: false`, luego no
+  // genera transmisión en la cola FIFO—, y este test lo fija para que no se rompa al tocar
+  // el detector.
+  const cierreConPerdida = descomponer({
+    fechaHora: '2026-06-01T10:00:00',
+    protocolo: 'Binance Futures',
+    clase: 'derivado',
+    ubicacion: 'binance',
+    resultadoNetoEUR: '-500',
+  })
+  const reapertura = descomponer({
+    fechaHora: '2026-06-15T10:00:00',
+    protocolo: 'Binance Futures',
+    clase: 'derivado',
+    ubicacion: 'binance',
+    resultadoNetoEUR: '400',
+    activo: 'USDT',
+    cantidad: '400',
+  })
+  const diario = numerar([...cierreConPerdida, ...reapertura])
+
+  it('no produce ninguna transmisión que el detector pueda mirar', () => {
+    expect(transmisionesDelDiario(diario)).toHaveLength(0)
+  })
+
+  it('no genera diferimiento del art. 33.5.e ni aviso de recompra', () => {
+    expect(detectarRecompras(diario)).toHaveLength(0)
+    expect(avisosRecompra(diario)).toHaveLength(0)
+  })
+})
