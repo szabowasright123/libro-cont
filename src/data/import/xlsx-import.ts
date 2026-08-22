@@ -12,7 +12,7 @@
  */
 
 import * as XLSX from 'xlsx'
-import type { Apunte, Tolerancias, Ubicacion, TipoUbicacion } from '../../engine/types'
+import type { Apunte, SentidoApunte, Tolerancias, Ubicacion, TipoUbicacion } from '../../engine/types'
 import { UBICACION_EXTERIOR } from '../../engine/types'
 import {
   serialExcelAISO,
@@ -52,6 +52,26 @@ function texto(v: unknown): string | undefined {
   if (v === undefined || v === null) return undefined
   const t = String(v).trim()
   return t === '' ? undefined : t
+}
+
+/**
+ * Lee el SENTIDO de la columna Q. Tolerante con lo que teclee el alumno: acepta la clave
+ * interna, la etiqueta con acentos y las abreviaturas naturales. Lo que no reconoce se
+ * descarta (queda `undefined`) y la validación avisará, que es preferible a inventar un
+ * sentido y mover la cola FIFO por una errata.
+ */
+function sentidoDesdeCelda(v: unknown): SentidoApunte | undefined {
+  const t = texto(v)
+  if (!t) return undefined
+  const n = t
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_]+/g, '-')
+  if (n.startsWith('entregad') || n === 'salida' || n === 'entrega') return 'entregada'
+  if (n.startsWith('recibid') || n === 'entrada' || n === 'recepcion') return 'recibida'
+  if (n.startsWith('solo-saldo') || n === 'solosaldos' || n === 'saldos') return 'solo-saldos'
+  return undefined
 }
 
 /** Lee una hoja como matriz de filas × celdas (valores crudos: fechas como serial). */
@@ -206,6 +226,12 @@ function leerDiario(
       ...campo('comisionCantidad', aDecimalDominio(fila[c.comisionCantidad])),
       ...campo('comisionActivo', texto(fila[c.comisionActivo])),
       ...campo('contravalorEUR', aDecimalDominio(fila[c.contravalorEUR])),
+      // art. 37.1.h): columnas O y P, presentes solo en los ficheros que exporta la app.
+      // Un fichero de la plantilla oficial no las trae y quedan sin definir (compatible).
+      ...campo('valorMercadoEntregadoEUR', aDecimalDominio(fila[c.valorMercadoEntregadoEUR])),
+      ...campo('valorMercadoRecibidoEUR', aDecimalDominio(fila[c.valorMercadoRecibidoEUR])),
+      // Sentido de DONACIÓN / AJUSTE: columna Q, misma tolerancia que O y P.
+      ...campo('sentido', sentidoDesdeCelda(fila[c.sentido])),
       ...campo('justificante', texto(fila[c.justificante])),
       ...campo('notas', notas),
     })

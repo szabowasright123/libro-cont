@@ -107,10 +107,20 @@ function escribirDiario(wb: ExcelJS.Workbook, apuntes: readonly Apunte[]): void 
   const c = DIARIO.col
   const fila1 = DIARIO.filaDatos1
 
-  // Limpia todas las filas de datos (A..N), incluidas las de ejemplo de la plantilla.
+  // Limpia todas las filas de datos (A..P), incluidas las de ejemplo de la plantilla.
   for (let r = fila1; r < fila1 + DIARIO.maxApuntes; r++) {
-    for (let col = c.id + 1; col <= c.notas + 1; col++) ws.getCell(r, col).value = null
+    for (let col = c.id + 1; col <= c.sentido + 1; col++) {
+      ws.getCell(r, col).value = null
+    }
   }
+
+  // Rótulos de las dos columnas que la plantilla oficial no trae (art. 37.1.h): la app las
+  // añade para no perder los dos valores de mercado al exportar. Ver plantilla-layout.
+  ws.getCell(1, c.valorMercadoEntregadoEUR + 1).value = DIARIO.rotulosAmpliacion.fila1
+  ws.getCell(2, c.valorMercadoEntregadoEUR + 1).value = DIARIO.rotulosAmpliacion.entregado
+  ws.getCell(2, c.valorMercadoRecibidoEUR + 1).value = DIARIO.rotulosAmpliacion.recibido
+  ws.getCell(1, c.sentido + 1).value = DIARIO.rotulosAmpliacion.sentidoFila1
+  ws.getCell(2, c.sentido + 1).value = DIARIO.rotulosAmpliacion.sentido
 
   apuntes.forEach((ap, i) => {
     const r = fila1 + i
@@ -131,6 +141,9 @@ function escribirDiario(wb: ExcelJS.Workbook, apuntes: readonly Apunte[]): void 
     set(c.comisionCantidad, num(ap.comisionCantidad))
     set(c.comisionActivo, ap.comisionActivo)
     set(c.contravalorEUR, num(ap.contravalorEUR))
+    set(c.valorMercadoEntregadoEUR, num(ap.valorMercadoEntregadoEUR))
+    set(c.valorMercadoRecibidoEUR, num(ap.valorMercadoRecibidoEUR))
+    set(c.sentido, ap.sentido)
     set(c.justificante, ap.justificante)
     set(c.notas, ap.notas)
   })

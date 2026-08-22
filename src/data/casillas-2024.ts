@@ -12,6 +12,7 @@
 
 import type { ConceptoFiscal } from '../engine/fiscal'
 import { CASILLAS_2025 } from './casillas-2025'
+import { CASILLAS_2026 } from './casillas-2026'
 
 /** Caveat que acompaña a cada nota de 2024 (bloques del manual, números sin verificar). */
 const NO_VERIFICADO_2024 =
@@ -86,6 +87,7 @@ export const CASILLAS_2024: readonly MapaCasilla[] = [
 export const CASILLAS_POR_EJERCICIO: Readonly<Record<number, readonly MapaCasilla[]>> = {
   2024: CASILLAS_2024,
   2025: CASILLAS_2025,
+  2026: CASILLAS_2026,
 }
 
 /** Devuelve el mapa de casillas del ejercicio, o el más reciente disponible como guía. */

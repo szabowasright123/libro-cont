@@ -19,6 +19,7 @@ import type {
   Tolerancias,
   Ubicacion,
 } from '../../engine/types'
+import type { CierreRegistro } from '../tipos'
 
 /** Marca de formato y versión del snapshot (para validar y migrar). */
 export const FORMATO_SNAPSHOT = 'libro-hesperides' as const
@@ -65,6 +66,13 @@ export interface SnapshotLibro {
    * eventos DeFi— sigan restaurándose sin tocarlas; `migrar` la normaliza a [].
    */
   posiciones?: Posicion[]
+  /**
+   * Cierres del ejercicio (v1.6.0): checklist del Anexo D con la razón escrita de cada «no
+   * aplica», memoria del ejercicio, conciliación a tres columnas y cotizaciones de cierre.
+   * Opcional por la misma razón que `posiciones`: las copias anteriores no lo traen y se
+   * restauran igual; `migrar` lo normaliza a [].
+   */
+  cierres?: CierreRegistro[]
 }
 
 /** Datos mínimos para construir un snapshot (los opcionales se rellenan por defecto). */
@@ -76,6 +84,7 @@ export interface EntradaSnapshot {
   justificantes?: JustificanteSerializable[]
   cuadreReal?: SaldoRealDeclarado[]
   posiciones?: Posicion[]
+  cierres?: CierreRegistro[]
   exportadoEn?: string
 }
 
@@ -92,6 +101,7 @@ export function construirSnapshot(datos: EntradaSnapshot): SnapshotLibro {
     justificantes: datos.justificantes ?? [],
     cuadreReal: datos.cuadreReal ?? [],
     posiciones: datos.posiciones ?? [],
+    cierres: datos.cierres ?? [],
   }
 }
 
@@ -160,6 +170,7 @@ export function parsearSnapshot(texto: string): SnapshotLibro {
     justificantes: arr<JustificanteSerializable>(o.justificantes),
     cuadreReal: arr<SaldoRealDeclarado>(o.cuadreReal),
     posiciones: arr<Posicion>(o.posiciones),
+    cierres: arr<CierreRegistro>(o.cierres),
   })
 }
 

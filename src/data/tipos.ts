@@ -16,6 +16,12 @@
  * esa frontera.
  */
 import type { Apunte, Justificante } from '../engine/types'
+import type {
+  CotizacionesCierre,
+  FilaTresColumnas,
+  MarcasCierre,
+  MemoriaEjercicio,
+} from '../engine/cierre'
 import type { SaldoRealDeclarado } from './import/json-backup'
 
 /**
@@ -101,4 +107,31 @@ export interface PrecioRegistro {
   activo: string
   precioEur: string
   fechaISO: string
+}
+
+/**
+ * Registro del CIERRE de un ejercicio (v1.6.0, pantalla de Cierre). Un registro por año,
+ * con `ejercicio` de clave primaria.
+ *
+ * Es todo contenido del ALUMNO, no de cálculo: el motor (`engine/cierre.ts`) lo recibe como
+ * entrada y lo evalúa contra lo que el Libro dice. Guarda las casillas marcadas del
+ * checklist del Anexo D —con la razón escrita de cada «no aplica», que es lo que separa
+ * «no lo hice» de «decidí no hacerlo, y aquí está por qué»—, la memoria del ejercicio, la
+ * conciliación a tres columnas de marzo y las cotizaciones de cierre con su fuente.
+ *
+ * Vive en IndexedDB, y no en `localStorage`, para que viaje en la copia de seguridad JSON.
+ */
+export interface CierreRegistro {
+  /** Año del ejercicio. Clave primaria. */
+  ejercicio: number
+  /** Casillas del Anexo D marcadas por el alumno, con su razón cuando es «no aplica». */
+  marcas: MarcasCierre
+  /** Los cuatro apartados de la memoria del ejercicio. */
+  memoria: MemoriaEjercicio
+  /** Filas de la conciliación a tres columnas (datos fiscales / registro / explicación). */
+  tresColumnas: FilaTresColumnas[]
+  /** Cotizaciones de cierre por activo, con su fuente. */
+  cotizaciones: CotizacionesCierre
+  /** Última escritura (ISO local), para el pie del informe de cierre. */
+  actualizadoEn?: string
 }

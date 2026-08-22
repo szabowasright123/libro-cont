@@ -49,8 +49,16 @@ function apuntesEquivalentes(a: Apunte, b: Apunte): void {
   expect(b.activoEntrada).toBe(a.activoEntrada)
   expect(b.comisionActivo).toBe(a.comisionActivo)
   expect(b.notas).toBe(a.notas)
+  expect(b.sentido).toBe(a.sentido)
   const dec = (x?: string) => (x === undefined ? undefined : D(x).toFixed())
-  for (const campo of ['cantidadSalida', 'cantidadEntrada', 'comisionCantidad', 'contravalorEUR'] as const) {
+  for (const campo of [
+    'cantidadSalida',
+    'cantidadEntrada',
+    'comisionCantidad',
+    'contravalorEUR',
+    'valorMercadoEntregadoEUR',
+    'valorMercadoRecibidoEUR',
+  ] as const) {
     const va = a[campo]
     const vb = b[campo]
     if (va === undefined) expect(vb).toBeUndefined()
@@ -74,6 +82,29 @@ describe('round-trip XLSX (export → import)', () => {
     const A = orden(origen.apuntes)
     const B = orden(reimportado.apuntes)
     A.forEach((ap, i) => apuntesEquivalentes(ap, B[i]!))
+  })
+
+  it('el SENTIDO de la donación sobrevive al ciclo (columna Q de ampliación)', async () => {
+    // Sin esta columna, exportar a Excel y reimportar borraría el `sentido` y devolvería
+    // el Libro al defecto de la v1.5.0: saldo abajo, cola FIFO intacta. Ver
+    // `engine/conciliacion.ts` y la ampliación O/P/Q de `plantilla-layout.ts`.
+    const origen = contenidoOrigen()
+    origen.apuntes.push({
+      id: '2024-900',
+      fechaHora: '2024-12-20T10:00:00',
+      tipo: 'DONACION',
+      sentido: 'entregada',
+      ubicacionOrigen: 'Ledger',
+      ubicacionDestino: 'EXTERIOR',
+      activoSalida: 'BTC',
+      cantidadSalida: '0.01',
+      contravalorEUR: '900',
+    })
+    const { archivos } = await exportarXlsx(origen, PLANTILLA)
+    const { apuntes } = importarXlsx(archivos[0]!.bytes)
+    const don = apuntes.find((a) => a.tipo === 'DONACION')
+    expect(don).toBeDefined()
+    expect(don!.sentido).toBe('entregada')
   })
 
   it('reproduce las ubicaciones (nombre, tipo, KYC, notas)', async () => {
@@ -127,5 +158,34 @@ describe('round-trip XLSX (export → import)', () => {
     // Al reimportar SIN excluir ejemplos, no debe aparecer ninguno (los limpió el export).
     const { informe } = importarXlsx(archivos[0]!.bytes, { excluirEjemplos: false })
     expect(informe.ejemplosDetectados).toBe(0)
+  })
+
+  it('conserva los dos valores de mercado de la permuta (art. 37.1.h) al ir y volver', async () => {
+    const origen = contenidoOrigen()
+    // Se enriquece la permuta del mini-caso con los dos valores de mercado (columnas O y P,
+    // que la plantilla oficial no trae y que la app añade al exportar).
+    const i = origen.apuntes.findIndex((a) => a.tipo === 'PERMUTA')
+    expect(i).toBeGreaterThanOrEqual(0)
+    const original = origen.apuntes[i] as Apunte
+    const apuntes = origen.apuntes.map((a, k) =>
+      k === i
+        ? {
+            ...original,
+            contravalorEUR: '1653.75',
+            valorMercadoEntregadoEUR: '1650',
+            valorMercadoRecibidoEUR: '1653.75',
+          }
+        : a,
+    )
+    const { archivos } = await exportarXlsx({ ...origen, apuntes }, PLANTILLA)
+    const primero = archivos[0]
+    expect(primero).toBeDefined()
+    const { apuntes: vuelta } = await importarXlsx((primero as { bytes: Uint8Array }).bytes)
+    const permuta = vuelta.find((a) => a.tipo === 'PERMUTA') as Apunte | undefined
+    expect(permuta).toBeDefined()
+    const p = permuta as Apunte
+    expect(D(p.valorMercadoEntregadoEUR as string).toFixed()).toBe(D('1650').toFixed())
+    expect(D(p.valorMercadoRecibidoEUR as string).toFixed()).toBe(D('1653.75').toFixed())
+    expect(D(p.contravalorEUR as string).toFixed()).toBe(D('1653.75').toFixed())
   })
 })

@@ -9,14 +9,24 @@
  * Sin lógica de cálculo (esa vive en src/engine). Aquí: CRUD + integridad
  * referencial (no borrar ubicación/activo con apuntes) + renumeración.
  */
-import type { Activo, Apunte, Justificante, Posicion, Ubicacion, Tolerancias } from '../engine/types'
+import type {
+  Activo,
+  Apunte,
+  Justificante,
+  Posicion,
+  RutaConvencional,
+  Ubicacion,
+  Tolerancias,
+} from '../engine/types'
 import { UBICACION_EXTERIOR, ACTIVOS_BASE, TOLERANCIAS_POR_DEFECTO } from '../engine/types'
 import { db, cryptoRandomId, sembrarSiVacia } from './db'
 import {
   type ApunteRegistro,
+  type CierreRegistro,
   type BorradorApunte,
   type JustificanteRegistro,
   type PrecioRegistro,
+  type SubtipoPerdida,
   CLAVE_PARAMETROS,
 } from './tipos'
 import {
@@ -27,6 +37,7 @@ import {
   JUSTIFICANTES_CASO_DEMO,
   SUBTIPOS_PERDIDA_CASO_DEMO,
   CUADRE_REAL_CASO_DEMO,
+  POSICIONES_CASO_DEMO,
 } from './demo/caso-demo'
 import { renumerar, type CambioNumero } from './numeracion'
 import { extraerMarcasTx } from './import/triaje'
@@ -541,6 +552,38 @@ export async function reemplazarContenido(contenido: ContenidoLibro): Promise<Ca
 }
 
 /** Contenido actual del Libro (dominio) listo para exportar a XLSX/CSV. */
+// ── Cierre del ejercicio (v1.6.0) ───────────────────────────────────────────
+
+/**
+ * Lee el cierre guardado de un ejercicio, o `undefined` si nunca se guardó nada.
+ * Un registro por año; la clave primaria es el propio ejercicio.
+ */
+export async function obtenerCierre(ejercicio: number): Promise<CierreRegistro | undefined> {
+  return db.cierres.get(ejercicio)
+}
+
+/**
+ * Guarda (o sustituye) el cierre de un ejercicio, sellando la hora de escritura para el pie
+ * del informe. La hora se toma en LOCAL y no en UTC: toda la app lee sus ISO como hora
+ * española, y un sello en UTC fecharía la memoria una o dos horas antes del reloj del alumno.
+ */
+export async function guardarCierre(registro: CierreRegistro): Promise<void> {
+  await db.cierres.put({ ...registro, actualizadoEn: ahoraLocalISO() })
+}
+
+/** Todos los cierres guardados, en orden de ejercicio (para la copia JSON). */
+export async function listarCierres(): Promise<CierreRegistro[]> {
+  const todos = await db.cierres.toArray()
+  return todos.sort((a, b) => a.ejercicio - b.ejercicio)
+}
+
+/** Momento actual en ISO local (`AAAA-MM-DDTHH:MM:SS`), sin la Z de UTC. */
+function ahoraLocalISO(): string {
+  const ahora = new Date()
+  const local = new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 19)
+}
+
 export async function exportarContenidoActual(): Promise<ContenidoLibro> {
   const [apuntes, ubicaciones, activos, tolerancias] = await Promise.all([
     listarApuntes(),
@@ -697,13 +740,14 @@ export async function registrarCopiaRealizada(fechaISO: string, nApuntes: number
 
 /** Foto completa del Libro para la copia JSON nativa (incluye justificantes y cuadre). */
 export async function snapshotActual(): Promise<EntradaSnapshot> {
-  const [contenido, registrosApuntes, justificantesRaw, cuadreReal, posiciones] =
+  const [contenido, registrosApuntes, justificantesRaw, cuadreReal, posiciones, cierres] =
     await Promise.all([
       exportarContenidoActual(),
       db.apuntes.toArray(),
       db.justificantes.toArray(),
       obtenerCuadreReal(),
       db.posiciones.toArray(),
+      listarCierres(),
     ])
   const correlativoPorUid = new Map(registrosApuntes.map((r) => [r.uid, r.id]))
   const justificantes = await Promise.all(
@@ -717,6 +761,7 @@ export async function snapshotActual(): Promise<EntradaSnapshot> {
     justificantes,
     cuadreReal,
     posiciones,
+    cierres,
   }
 }
 
@@ -735,6 +780,7 @@ export async function restaurarSnapshot(snapshot: SnapshotLibro): Promise<Cambio
       db.parametros,
       db.precios,
       db.posiciones,
+      db.cierres,
     ],
     async () => {
       await Promise.all([
@@ -744,7 +790,13 @@ export async function restaurarSnapshot(snapshot: SnapshotLibro): Promise<Cambio
         db.justificantes.clear(),
         db.precios.clear(),
         db.posiciones.clear(),
+        db.cierres.clear(),
       ])
+      // El cierre del ejercicio —la memoria, las razones escritas de cada «no aplica», la
+      // conciliación a tres columnas— se restaura como cualquier otro dato del alumno.
+      if (snapshot.cierres?.length) {
+        await db.cierres.bulkAdd(snapshot.cierres.map((c) => ({ ...c })))
+      }
       // Las posiciones se restauran ANTES que los apuntes: así ningún apunte queda,
       // ni transitoriamente, con un `posicionId` que no resuelve.
       if (snapshot.posiciones?.length) {
@@ -791,6 +843,7 @@ export async function borrarTodo(): Promise<void> {
       db.parametros,
       db.precios,
       db.posiciones,
+      db.cierres,
     ],
     async () => {
       await Promise.all([
@@ -801,6 +854,7 @@ export async function borrarTodo(): Promise<void> {
         db.parametros.clear(),
         db.precios.clear(),
         db.posiciones.clear(),
+        db.cierres.clear(),
       ])
       await db.activos.bulkAdd(ACTIVOS_BASE.map((a) => ({ ...a })))
       await db.parametros.add({
@@ -839,14 +893,57 @@ export async function libroVacio(): Promise<boolean> {
 }
 
 /**
- * Carga el CASO DE EJEMPLO COMPLETO (2024–2025): REEMPLAZA el contenido del Libro por los
- * apuntes, ubicaciones y activos de la demo; siembra el Archivo (justificantes), el subtipo de
- * las PÉRDIDAS, la referencia estable de los AJUSTES (rectificaA → rectificaAUid) y los precios
- * manuales; y marca `demoCargada`. Idempotente: llamarla dos veces no duplica (siempre
- * reemplaza). Renumera antes de resolver referencias, para que los correlativos queden como los
- * del dataset (los de 2024, como los del golden). Transacción atómica.
+ * Un CASO cargable en el Libro: el caso de ejemplo de la app y los casos por unidad del
+ * taller tienen exactamente esta forma, y por eso los carga la misma función.
+ *
+ * Todo es opcional salvo los apuntes y las ubicaciones: un caso de la Unidad 5 puede querer
+ * llegar con el Archivo a medias (que ese es el ejercicio) y sin cuadre declarado.
  */
-export async function cargarCasoDemo(): Promise<void> {
+export interface CasoCargable {
+  apuntes: readonly Apunte[]
+  ubicaciones: readonly Ubicacion[]
+  /** Activos ADEMÁS de los de serie (BTC y EUR se añaden siempre). */
+  activos?: readonly Activo[]
+  justificantes?: readonly JustificanteCargable[]
+  /** Subtipo de las PÉRDIDAS, por correlativo del apunte (capa de datos, derivada D2). */
+  subtiposPerdida?: Readonly<Record<string, SubtipoPerdida>>
+  precios?: readonly PrecioRegistro[]
+  /** Saldos reales declarados, para que el CUADRE tenga contra qué comparar. */
+  cuadreReal?: readonly SaldoRealDeclarado[]
+  /** Posiciones DeFi que agrupan las patas de un mismo evento. */
+  posiciones?: readonly Posicion[]
+  /**
+   * Marca el Libro como «demo cargada», que es lo que hace que Inicio ofrezca borrarla y
+   * que el recordatorio de copia de seguridad se calle (no son datos del alumno).
+   */
+  marcarDemo?: boolean
+}
+
+/** Justificante de un caso, enlazado por el correlativo del apunte (no por su uid). */
+export interface JustificanteCargable {
+  id: string
+  /** Correlativo AAAA-NNN del apunte, o '' si es documento de ubicación o de ejercicio. */
+  apunteId: string
+  rutaConvencional: RutaConvencional
+  tipoDocumento: string
+  referenciaExterna?: string
+  notas?: string
+}
+
+/**
+ * Carga un CASO en el Libro: REEMPLAZA el contenido por el del caso, siembra el Archivo, el
+ * subtipo de las PÉRDIDAS, la referencia estable de los AJUSTES (rectificaA → rectificaAUid),
+ * las posiciones DeFi y los precios manuales.
+ *
+ * Idempotente: llamarla dos veces no duplica, siempre reemplaza. Renumera ANTES de resolver
+ * las referencias, para que los correlativos queden como los del dataset —los de 2024 del
+ * caso de ejemplo, como los del golden—. Transacción atómica: o entra el caso entero o no
+ * entra nada, que es lo que evita dejar el Libro a medias si algo falla a mitad.
+ *
+ * Las tolerancias del cuadre y la marca de la última copia se conservan: son ajustes del
+ * alumno, no del caso.
+ */
+export async function cargarCaso(caso: CasoCargable): Promise<void> {
   await db.transaction(
     'rw',
     [
@@ -857,6 +954,7 @@ export async function cargarCasoDemo(): Promise<void> {
       db.parametros,
       db.precios,
       db.posiciones,
+      db.cierres,
     ],
     async () => {
       await Promise.all([
@@ -867,54 +965,80 @@ export async function cargarCasoDemo(): Promise<void> {
         db.precios.clear(),
         db.posiciones.clear(),
       ])
-      await db.activos.bulkAdd(conActivosBase(ACTIVOS_CASO_DEMO))
-      await db.ubicaciones.bulkAdd(UBICACIONES_CASO_DEMO.map((u) => ({ ...u })))
-      await db.apuntes.bulkAdd(APUNTES_CASO_DEMO.map(apunteARegistro))
+      await db.activos.bulkAdd(conActivosBase(caso.activos ?? []))
+      await db.ubicaciones.bulkAdd(caso.ubicaciones.map((u) => ({ ...u })))
+      // Las posiciones, ANTES que los apuntes: así ningún apunte queda, ni transitoriamente,
+      // con un `posicionId` que no resuelve.
+      if (caso.posiciones?.length) {
+        await db.posiciones.bulkAdd(caso.posiciones.map((p) => ({ ...p })))
+      }
+      await db.apuntes.bulkAdd(caso.apuntes.map(apunteARegistro))
       await renumerarTodo()
 
-      // Con los correlativos ya fijados (idénticos a los del dataset), se resuelven las
-      // referencias estables: justificantes (apunteId → apunteUid), rectificaA de los AJUSTES
-      // (→ rectificaAUid) y subtipo de las PÉRDIDAS (capa de datos, derivada D2).
+      // Con los correlativos ya fijados se resuelven las referencias estables.
       const registros = await db.apuntes.toArray()
       const uidPorId = new Map(registros.map((r) => [r.id, r.uid]))
-      for (const ap of APUNTES_CASO_DEMO) {
+      for (const ap of caso.apuntes) {
         if (!ap.rectificaA) continue
         const uid = uidPorId.get(ap.id)
         const refUid = uidPorId.get(ap.rectificaA)
         if (uid && refUid) await db.apuntes.update(uid, { rectificaAUid: refUid })
       }
-      for (const [id, subtipoPerdida] of Object.entries(SUBTIPOS_PERDIDA_CASO_DEMO)) {
+      for (const [id, subtipoPerdida] of Object.entries(caso.subtiposPerdida ?? {})) {
         const uid = uidPorId.get(id)
         if (uid) await db.apuntes.update(uid, { subtipoPerdida })
       }
-      await db.justificantes.bulkAdd(
-        JUSTIFICANTES_CASO_DEMO.map((j) => ({
-          id: j.id,
-          // '' (documento de ubicación/ejercicio, carpetas 05/06) queda sin apunteUid.
-          apunteUid: uidPorId.get(j.apunteId) ?? '',
-          rutaConvencional: j.rutaConvencional,
-          tipoDocumento: j.tipoDocumento,
-          ...(j.referenciaExterna ? { referenciaExterna: j.referenciaExterna } : {}),
-          ...(j.notas ? { notas: j.notas } : {}),
-        })),
-      )
+      if (caso.justificantes?.length) {
+        await db.justificantes.bulkAdd(
+          caso.justificantes.map((j) => ({
+            id: j.id,
+            // '' (documento de ubicación o de ejercicio, carpetas 05/06) queda sin apunteUid.
+            apunteUid: uidPorId.get(j.apunteId) ?? '',
+            rutaConvencional: j.rutaConvencional,
+            tipoDocumento: j.tipoDocumento,
+            ...(j.referenciaExterna ? { referenciaExterna: j.referenciaExterna } : {}),
+            ...(j.notas ? { notas: j.notas } : {}),
+          })),
+        )
+      }
+      if (caso.precios?.length) await db.precios.bulkAdd(caso.precios.map((p) => ({ ...p })))
 
-      await db.precios.bulkAdd(PRECIOS_CASO_DEMO.map((p) => ({ ...p })))
       const prev = await db.parametros.get(CLAVE_PARAMETROS)
       await db.parametros.put({
         clave: CLAVE_PARAMETROS,
         toleranciaVerde: prev?.toleranciaVerde ?? TOLERANCIAS_POR_DEFECTO.verde,
         toleranciaAmbar: prev?.toleranciaAmbar ?? TOLERANCIAS_POR_DEFECTO.ambar,
-        // La demo trae su propio cuadre declarado (todo en verde, listo para enseñar).
-        cuadreReal: CUADRE_REAL_CASO_DEMO.map((c) => ({ ...c })),
+        cuadreReal: (caso.cuadreReal ?? []).map((c) => ({ ...c })),
         ...(prev?.ultimaCopiaEn ? { ultimaCopiaEn: prev.ultimaCopiaEn } : {}),
         ...(prev?.apuntesEnUltimaCopia !== undefined
           ? { apuntesEnUltimaCopia: prev.apuntesEnUltimaCopia }
           : {}),
-        demoCargada: true,
+        ...(caso.marcarDemo ? { demoCargada: true } : {}),
       })
     },
   )
+}
+
+/**
+ * Carga el CASO DE EJEMPLO COMPLETO (2024–2026) de la app. Es `cargarCaso` con los datos de
+ * `data/demo/caso-demo.ts`; se conserva como función propia porque la llaman Inicio, los
+ * tests y la ruta de onboarding, y porque marca el Libro como demo.
+ */
+export async function cargarCasoDemo(): Promise<void> {
+  await cargarCaso({
+    apuntes: APUNTES_CASO_DEMO,
+    ubicaciones: UBICACIONES_CASO_DEMO,
+    activos: ACTIVOS_CASO_DEMO,
+    justificantes: JUSTIFICANTES_CASO_DEMO,
+    subtiposPerdida: SUBTIPOS_PERDIDA_CASO_DEMO,
+    precios: PRECIOS_CASO_DEMO,
+    // La demo trae su propio cuadre declarado (todo en verde, listo para enseñar).
+    cuadreReal: CUADRE_REAL_CASO_DEMO,
+    // Las patas de los eventos DeFi del capítulo 2026 llevan `posicionId`: sin sembrar las
+    // posiciones, la pestaña Posiciones no podría agruparlas.
+    posiciones: POSICIONES_CASO_DEMO,
+    marcarDemo: true,
+  })
 }
 
 /**

@@ -15,6 +15,7 @@ import Dexie, { type Table } from 'dexie'
 import type { Activo, Posicion, Ubicacion } from '../engine/types'
 import { ACTIVOS_BASE, TOLERANCIAS_POR_DEFECTO } from '../engine/types'
 import {
+  type CierreRegistro,
   type ApunteRegistro,
   type JustificanteRegistro,
   type ParametrosRegistro,
@@ -33,6 +34,7 @@ export class LibroDB extends Dexie {
   parametros!: Table<ParametrosRegistro, string>
   precios!: Table<PrecioRegistro, string>
   posiciones!: Table<Posicion, string>
+  cierres!: Table<CierreRegistro, number>
 
   constructor() {
     super('libro-hesperides')
@@ -201,6 +203,30 @@ export class LibroDB extends Dexie {
       parametros: 'clave',
       precios: 'activo',
       posiciones: 'id, protocolo, tipoPosicion, estado',
+    })
+
+    // ── Esquema v10 (v1.6.0, pantalla de CIERRE): nueva tabla `cierres`, un registro por
+    //    ejercicio. Guarda lo que el alumno MARCA y ESCRIBE al cerrar el año: las casillas
+    //    del Anexo D con la razón de cada «no aplica», la memoria del ejercicio, la
+    //    conciliación a tres columnas y las cotizaciones de cierre con su fuente.
+    //
+    //    Va en IndexedDB y no en `localStorage` por una razón concreta: la memoria del
+    //    ejercicio es, según el propio manual, «la casilla que más rinde» —«el documento
+    //    que un asesor, un heredero o el propio contribuyente dentro de cinco años leerá
+    //    antes que ninguna otra cosa»— y tiene que viajar en la copia de seguridad JSON
+    //    como viajan los saldos reales del cuadre. En `localStorage` no viajaría.
+    //
+    //    Tabla nueva y vacía: no migra datos previos y NO necesita `.upgrade()`, igual que
+    //    `precios` en la v6 y `posiciones` en la v8.
+    this.version(10).stores({
+      apuntes: 'uid, id, fechaHora, tipo, activoEntrada, activoSalida, posicionId',
+      ubicaciones: 'id, nombre, kyc, *direcciones',
+      justificantes: 'id, apunteUid, rutaConvencional',
+      activos: 'simbolo',
+      parametros: 'clave',
+      precios: 'activo',
+      posiciones: 'id, protocolo, tipoPosicion, estado',
+      cierres: 'ejercicio',
     })
   }
 }

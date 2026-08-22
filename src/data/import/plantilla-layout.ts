@@ -41,6 +41,28 @@ export const DIARIO = {
     contravalorEUR: 11, // L
     justificante: 12, // M
     notas: 13, // N · Notas / rectifica a (aquí va la marca de ejemplo)
+    // ── Ampliación 1.4.0 · art. 37.1.h) LIRPF ───────────────────────────────
+    // La plantilla oficial del taller llega hasta la columna N. Estas dos columnas las
+    // AÑADE la app al exportar (con su rótulo en las filas 1-2) para que el ciclo
+    // exportar → reimportar no pierda los dos valores de mercado de la permuta. Un
+    // fichero de la plantilla original simplemente no las trae, y el importador lo
+    // tolera: quedan `undefined` y el motor cuantifica con `contravalorEUR`, que es el
+    // comportamiento anterior a esta regla ([MT] U6.4 y U4.5).
+    valorMercadoEntregadoEUR: 14, // O
+    valorMercadoRecibidoEUR: 15, // P
+    // ── Ampliación 1.6.0 · sentido de DONACIÓN / AJUSTE ─────────────────────
+    // Mismo mecanismo y misma tolerancia: la columna Q la añade la app. Sin ella, el ciclo
+    // exportar → reimportar perdería el sentido y volvería a separar el SALDO de la COLA
+    // FIFO, que es justo el defecto que la 1.6.0 cierra (ver `engine/conciliacion.ts`).
+    sentido: 16, // Q
+  },
+  /** Rótulos que la app escribe en O1:Q2 al exportar (la plantilla oficial no los trae). */
+  rotulosAmpliacion: {
+    fila1: 'Permuta · art. 37.1.h) LIRPF',
+    entregado: 'VM entregado (EUR)',
+    recibido: 'VM recibido (EUR)',
+    sentidoFila1: 'Donación / ajuste',
+    sentido: 'Sentido (entregada / recibida / solo-saldos)',
   },
 } as const
 
