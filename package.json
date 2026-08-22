@@ -1,7 +1,7 @@
 {
   "name": "libro-hesperides",
   "private": true,
-  "version": "1.3.0",
+  "version": "1.6.0",
   "type": "module",
   "description": "Libro Hespérides — Libro contable y Archivo probatorio del Taller de Bitcoin. App web local-first.",
   "author": "Javier Bravezo Durán",

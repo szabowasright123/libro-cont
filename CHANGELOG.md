@@ -4,7 +4,272 @@ Todas las versiones notables de la app. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/); versionado
 [SemVer](https://semver.org/lang/es/).
 
-## [No publicado] — cabecera de siete pestañas e importación desde exploradores
+## [1.6.0] — 2026-08-22
+
+Auditoría de la app ejecutada sobre una copia limpia del repositorio, y ejecución de sus dos
+capítulos: los **defectos con consecuencia numérica** y las **mejoras para el Taller**. Es la
+versión que cierra el hueco más serio que quedaba en el motor y la que convierte la app en
+material de clase y no solo en herramienta de trabajo. **680 pruebas en verde** (eran 426).
+
+### El descuadre silencioso entre la cola FIFO y los saldos
+
+Era el hallazgo grave de la auditoría, y no era teórico: **el propio caso de ejemplo de la app
+arrastraba 0,01 BTC de existencias fantasma con su coste**, esperando a que la siguiente venta
+se los comiera.
+
+`fifo.ts` leía los flags del catálogo con `=== true`, de modo que el «según el caso» de
+DONACIÓN y AJUSTE se resolvía siempre como «no»: un bitcoin donado bajaba del SALDO y seguía
+vivo en la COLA. El CUADRE no podía verlo —compara el saldo calculado con el saldo real
+declarado, y ese cuadraba— porque el descuadre estaba una capa más abajo. Es exactamente el
+«error invisible» de [MT] U6.2, dentro de la herramienta.
+
+- **`engine/types.ts` · `sentido` y `resolverFlags()`.** Nuevo tipo `SentidoApunte`
+  (`'entregada' | 'recibida' | 'solo-saldos'`) y campo opcional `sentido` en el apunte.
+  `resolverFlags(apunte)` es ahora la **única puerta legítima** para leer `abreLote` /
+  `consumeLote`: leer el catálogo directamente vuelve a enterrar el «según el caso».
+  El AJUSTE tiene por defecto `'solo-saldos'` —rectificar un tecleo no transmite nada—; la
+  DONACIÓN **no tiene defecto**, porque adivinar entre entregada y recibida sería inventar un
+  hecho.
+- **`engine/conciliacion.ts` (NUEVO) · la comprobación que faltaba.**
+  `conciliarFifoSaldos` compara, activo a activo, las existencias vivas de la cola contra la
+  suma de saldos, con semáforo, motivo y apuntes implicados. El euro queda fuera: es moneda de
+  cuenta y no tiene cola. **El Anexo D del manual ya la exigía** —«Comprobar que la cola FIFO y
+  el saldo dicen lo mismo activo por activo», 31 de diciembre— y la app no la hacía en ninguna
+  parte.
+- **`engine/fiscal.ts` · la donación entra en el cajón del ahorro.** La donación ENTREGADA es
+  transmisión lucrativa ínter vivos: alteración patrimonial en el donante, valorada por las
+  normas del ISD sin exceder el valor de mercado (**art. 36 LIRPF**, verificado contra el texto
+  consolidado del BOE el 21-8-2026), con la ganancia computable y **la pérdida no**
+  (**art. 33.5.c LIRPF**: «No se computarán como pérdidas patrimoniales las siguientes: […]
+  c) Las debidas a transmisiones lucrativas por actos ínter vivos o a liberalidades»). La línea
+  sigue apareciendo en el desglose con su motivo; el nuevo `perdidasNoComputablesEUR` la suma
+  aparte. La donación RECIBIDA no produce renta en el IRPF del donatario: abre lote y ya.
+- **`engine/validaciones.ts`** · `DONACION_SIN_SENTIDO` (error), `DONACION_ENTREGADA_LUCRATIVA`
+  y `AJUSTE_CON_CANTIDADES` (avisos), y `CONCILIACION_FIFO_SALDOS` a nivel de diario.
+- **El formulario ya preguntaba el sentido y no lo guardaba.** El radio «entregada / recibida»
+  existía desde P2 y se quedaba en la pantalla. Ahora viaja al apunte.
+- **Puente con Excel · columna Q.** El `sentido` sobrevive al ciclo exportar → reimportar, como
+  las columnas O y P del art. 37.1.h. Sin ella, pasar por Excel devolvía el Libro al defecto.
+
+**Consecuencia visible en el caso de ejemplo**: el ahorro de 2025 pasa de 2 a 3 transmisiones y
+de −67,64 € a **+431,76 €** de neto (la donación de 0,01 BTC, valorada en 900 € con coste FIFO
+400,60 €, arroja +499,40 €), y **el caso concilia en cero**.
+
+### El aviso del modelo 721 ya no suma los euros
+
+`aviso721.ts` metía el saldo en EUR de las ubicaciones extranjeras en el total valorado: en el
+caso de ejemplo, los 7.674 € del total eran **íntegramente euros**, es decir, un patrimonio en
+monedas virtuales que valía cero. El propio texto del aviso decía desde la v1.4.0 que el fiat
+va al bloque de cuentas del modelo 720 (**V2185-23**): la pantalla se contradecía a sí misma.
+Ahora el fiat queda fuera del cómputo y se informa aparte. Es el error «por exceso» que
+[MT] U10.1 enseña a evitar.
+
+### Pantallas nuevas
+
+- **El Panel** (`#/panel`, subpestaña del Diario) — F3, lo último de producto que quedaba en la
+  hoja de ruta. El Diario visto por el motor en cuatro miradas: SALDOS, cola FIFO, CUADRE y
+  CONCILIACIÓN, **con drill-down**: se pincha cualquier cifra y salen los apuntes que la
+  componen. En clase síncrona es la diferencia entre explicar el FIFO y enseñarlo.
+- **Cierre del ejercicio** (`#/cierre`, subpestaña de Fiscal) — la Unidad 10 hecha herramienta:
+  las **quince casillas del Anexo D** con su literal, **ocho de ellas resueltas por el motor**
+  (conciliación, cuadre, huecos del Archivo, doble corte del 721, foto de cierre, conciliación
+  a tres columnas y memoria), la **foto de cierre** con la cotización empleada y su fuente, la
+  **conciliación a tres columnas** de marzo, y la **memoria del ejercicio** con sus cuatro
+  apartados. Un ejercicio está cerrado cuando todas las casillas están marcadas, o marcadas
+  como no aplicables **con su razón escrita**: sin razón, no cierra.
+- **Casos del taller** (en Inicio) — **seis casos** cargables con un clic, uno por unidad, cada
+  uno con su enunciado y con **un defecto deliberado dentro**, que es lo que enseña: la carga
+  sucia de U5, el error invisible de U6, el exchange cerrado de U7 y su trampa del coste cero,
+  los eventos DeFi de U8, el traslado limpio de U9 y el cierre al filo del umbral de U10. Un
+  caso perfecto no se puede depurar.
+- **Revisión del método** (en el Panel) — la autoevaluación en su modo «sin solución»: qué le
+  falta al Libro propio según las reglas del método y el estado del Archivo.
+- **Expediente de entrega** (en Cierre) — un único HTML autocontenido con Libro, saldos, cola,
+  cuadre, conciliación, resumen fiscal y estado probatorio, para entregar un ejercicio.
+
+### Motor de autocorrección
+
+`engine/autocorreccion.ts` compara el Libro del alumno con el de la solución y dice **en qué
+apunte y en qué columna** se desvió, en cuatro capas (saldos → FIFO → cajones fiscales →
+apuntes). Empareja por el hecho —día, activos, cantidades— y no por el correlativo, que se
+renumera; **silencia la cascada**, de modo que un error de enero que arrastra ocho
+transmisiones se cuenta una vez y arriba; y cada hallazgo lleva una pista que orienta sin dar
+la respuesta. Es **autoevaluación, no calificación**: no hay nota, ni se guarda, ni se envía.
+
+### Capítulo 2026 del caso de ejemplo
+
+Diez apuntes que ejercitan lo que faltaba: un **perpetuo liquidado por diferencias** con tres
+cortes y la posición todavía abierta a 31-12 (imputación diaria, V2115-21), una **permuta con
+los dos valores de mercado distintos** donde se ve que manda el mayor (art. 37.1.h), una
+**aportación a pool** descompuesta en patas con su criterio declarado, y una **donación
+recibida** que cierra el par con la entregada de 2025. Los capítulos 2024 y 2025 no se tocan:
+el golden del mini-caso sigue intacto.
+
+### Otros
+
+- **Esquema Dexie v10 · tabla `cierres`.** El cierre del ejercicio vive en IndexedDB y **viaja
+  en la copia de seguridad JSON**. La razón la da el manual: «La memoria del ejercicio es la
+  casilla que más rinde […] el documento que un asesor, un heredero o el propio contribuyente
+  dentro de cinco años leerá antes que ninguna otra cosa». Una memoria que no está en la copia
+  se pierde el día que el alumno cambia de ordenador.
+- **`repositorio.cargarCaso`** generaliza `cargarCasoDemo`: los casos del taller y el caso de
+  ejemplo se cargan por la misma puerta, en transacción atómica. De paso, **se siembran las
+  posiciones DeFi**, que estaban exportadas y nadie cargaba.
+- **`casillas-2026.ts`** — mapa de casillas del ejercicio 2026.
+- **Rótulo «¿Simétrica?»** también en el Diario, y guía integrada del manual en las pantallas
+  que no la tenían.
+- **`fmtCantidad`** en `ui/formato.ts`: las cantidades se pintan con la precisión del satoshi
+  y el valor exacto queda en el `title`. Desde D0 el prorrateo del gas produce decimales
+  periódicos, y una celda con cuarenta cifras no es un número, es un accidente aritmético.
+- **La hora de los informes, en local y no en UTC**: un informe generado a las 00:30 se fechaba
+  el día anterior a las 22:30.
+- Accesibilidad (`aria-*`, `<label>`) en todo lo nuevo.
+
+## [1.5.0] — 2026-08-20
+
+Revisión del tratamiento de los **derivados liquidados por diferencias** y alineación con el
+**Manual del Taller V7**. Ningún golden test cambia: las correcciones son de calificación y de
+documentación, no de aritmética. **234 tests del motor en verde.**
+
+### Derivados por diferencias — cuatro correcciones y dos hallazgos
+
+Origen: `Nota_verificacion_derivados_IRPF.docx` (20-8-2026), ya incorporada al manual.
+
+- **La base la manda el art. 46.b)**, no los arts. 33.1 y 34. El 33.1 califica y el 34
+  cuantifica; la integración en la base del ahorro es del **art. 46.b)** y la compensación del
+  **art. 49.1.b) y 2**. El flanco de que en una liquidación por diferencias no hay propiamente
+  transmisión lo cubren las **SSTS 803/2022 y 804/2022, de 21-6-2022** (rec. 7121/2020 y
+  7749/2020). Tocado en `engine/types.ts`, `engine/fiscal.ts`, `engine/defi/plantillas.ts`,
+  `ui/defi/AsistenteEvento.tsx`, `docs/reference/DOMINIO.md` y `docs/ESTADO.md`.
+- **Imputación DIARIA, no al cerrar la posición.** La **V2115-21** —la consulta que
+  `DEFI_EVENTOS_COMPLEJOS.md` §7 dejaba marcada como «pendiente de lectura directa antes de
+  fijar el criterio de imputación temporal en el motor»— concluye que con liquidaciones
+  periódicas la ganancia o pérdida se obtiene diariamente «aun cuando la posición contractual
+  no se hubiese cerrado al finalizar dicho período impositivo» (art. 14.1.c LIRPF), criterio
+  reiterado en V2788-21 y V3183-20. Un perpetuo liquida funding cada ocho horas: el asistente y
+  la plantilla D1 dicen ahora que se registra **un apunte por corte de liquidación**, y que una
+  posición viva a 31-12 ya ha generado renta.
+- **«Los intereses no son deducibles» era media verdad.** Comisiones de apertura y cierre, sí;
+  intereses **pagados**, no; intereses **percibidos**, sí («un componente más a tener en
+  cuenta», V2115-21). El *funding rate* queda declarado como zona gris con su tesis prudente.
+- **El RD 1814/1991 está derogado**, y sus dos primeros sucesores también: la cadena es
+  RD 1814/1991 → RD 1282/2010 → RD 1464/2018 → **RD 814/2023**. El art. 37.1.m) sigue citando
+  literalmente la norma muerta y la DGT lo resuelve por remisión dinámica (V0503-21). La
+  conclusión práctica no cambia: un perpetuo de exchange queda fuera de la regla especial.
+
+### Dos hallazgos que la nota no listaba
+
+- **El art. 33.5 no alcanza a los derivados** (**V2770-19**, 9-10-2019; precedente para futuros,
+  **V3755-16**): no son valores —decaen f) y g)— y no son elementos susceptibles de ser
+  transmitidos y posteriormente adquiridos —decae la e)—. El detector de recompra ya lo cumplía
+  **por construcción** (`LIQUIDACION_DERIVADO` tiene `consumeLote: false`, luego no genera
+  transmisión en la cola FIFO), pero no estaba ni documentado ni fijado por un test. Ahora sí:
+  `engine/defi/recompra.ts` lo explica y `fases-d3-d6.test.ts` añade *«una pérdida en derivados
+  no se difiere aunque se reabra posición»*.
+- **Un derivado sobre cripto no es un criptoactivo**: MiCA lo excluye por ser instrumento
+  financiero de MiFID II (art. 2.4.a y considerando 9; Directrices de ESMA de marzo de 2025).
+  De ahí que quede fuera del art. 37.1.h, del FIFO del art. 37.2 y de los modelos 172/173/721.
+
+### Otros
+
+- Se **retira V0917-14** de la línea de analogía en `engine/fiscal.ts`: resolvía sobre el
+  régimen de base general de 2013-2014, derogado desde el 1-1-2015 por la Ley 16/2012.
+- Se añade el aviso de que todo el tratamiento es **analogía sin amparo del art. 89 LGT**, y de
+  que el riesgo real es probatorio: **ECLI:ES:TSJAND:2023:18410** (Málaga, 12-12-2023) rechazó
+  208.501 € de pérdidas en CFD pese a tener el criterio de fondo a favor.
+- `fiscal.test.ts` admite la marca «Verificado a 20-8-2026» en la fecha de criterio.
+- **`docs/reference/DOMINIO.md`**: la columna «¿Cuadra?» pasa a «¿Simétrica?» también aquí
+  (quedaba de la v1.4.0), y la tabla remite al **Anexo C** del manual V7, que es su espejo.
+
+### Manual V7 (20-8-2026) — lo que la app debe saber
+
+El manual incorpora **Anexo C** (tabla maestra del catálogo cerrado, espejo de DOMINIO §3.3),
+**Anexo D** (checklist de cierre), **Anexo VIII** (bibliografía) y **Anexo IX** (índice de
+consultas con su estado de verificación); el anexo de fichas pasa de «ANEXO I» a **«ANEXO B»** y
+sus fichas se numeran **B.1–B.13**. Las remisiones de la app a «[MT] Anexo C» y «Anexo XI bis»
+vuelven a resolver.
+
+## [1.4.0] — 2026-08-19
+
+Tres encargos en una sola versión: la valoración de la permuta por el art. 37.1.h) LIRPF, la
+cabecera de siete pestañas con importación desde exploradores, y la **alineación con el Manual
+del Taller V6**. El **motor de cálculo no cambia de contrato** en el tercero y los **golden
+tests siguen intactos** en los tres.
+
+### Alineación con el Manual del Taller V6 (19-08-2026)
+
+Cierre del punto 7 del orden de trabajo del informe de cotejo: sincronizar lo que la app dice
+con lo que el manual dice.
+
+- **`cuadra` → `simetrico`** (`engine/types.ts`). El flag describía si la operación tiene salida
+  y entrada equivalentes, no si cuadra: `saldos.ts` nunca lo consultó y computa toda cantidad
+  anotada, que es lo correcto —una recompensa de staking entra sin que salga nada y el saldo
+  real de la plataforma sube igual—. El nombre inducía a leer las asimetrías como descuadres
+  cuando son información fiscal. La columna de Parámetros pasa a rotularse **«¿Simétrica?»**,
+  con su nota al pie. Renombrado también en `types.test.ts`. Ningún cálculo cambia.
+- **Recuento de cajones fiscales** (`engine/fiscal.ts`, `ui/pages/FiscalPage.tsx`). El módulo
+  decía «cinco cajones» y definía seis. Se documenta la relación correcta, que es la del manual
+  ([MT] U9.1): son **seis claves para cinco salidas**, porque `derivados` no es una base
+  imponible distinta sino una subdivisión de la primera —una liquidación por diferencias va al
+  mismo apartado, pero no consume lote FIFO y su trazabilidad es otra—.
+- **Checklist probatoria del duodécimo tipo**. La entrada de `LIQUIDACION_DERIVADO` ya existía
+  en `CHECKLIST_PROBATORIA` (extracto de la posición, movimientos de margen y fuente de la
+  cotización): lo que faltaba era la prueba que lo garantizase. `archivo.test.ts` comprueba
+  ahora que hay **12** entradas y que la del duodécimo tipo no está vacía, de modo que una
+  liquidación de derivado puede quedar «completa».
+- **Ranura `manual.importar` rellenada** (`ui/guia/unidades.ts`). Era la única sin literal. Se
+  ha tomado del Manual V6, que incorpora dos pasajes escritos para esta pantalla: la distinción
+  **mover / transformar / transmitir** (U1.6) y las **tres cosas que ninguna importación puede
+  traer** (U5.3). Ya no queda ninguna ranura `{{TEXTO-MANUAL}}` pendiente.
+- **Autoridad del modelo 721 unificada** con el manual y en el mismo orden: V2290-23
+  (28-7-2023, monederos «hot» y «cold») → V0941-24 (29-4-2024, monedero de papel) → preguntas
+  frecuentes del modelo 721 de la Sede de la AEAT. Se añade la precisión de **V2185-23**: el
+  saldo en moneda fiduciaria de un exchange extranjero no va al 721, sino al bloque de cuentas
+  del modelo 720. Afecta a `engine/fiscal.ts`, `ui/fiscal/aviso721.ts` y
+  `docs/TEXTOS_MANUAL_RANURAS.md`.
+- **«11 tipos» → «12 tipos»** en los tres literales que quedaban (`ui/guia/unidades.ts`, que
+  cita U6.1 palabra por palabra, `HomePage.tsx` y `ParametrosPage.tsx`), a la vez que el manual.
+
+### El art. 37.1.h) llega al puente con Excel
+
+El motor aplicaba la regla desde el encargo anterior, pero los dos valores de mercado **se
+perdían al exportar**: la plantilla oficial llega a la columna N y no tiene dónde guardarlos.
+
+- `plantilla-layout.ts` define dos columnas de ampliación, **O** (valor de mercado de lo
+  entregado) y **P** (de lo recibido), que **la app añade al exportar**, con su rótulo en las
+  filas 1-2. La plantilla oficial del taller no se toca.
+- El importador las lee cuando están y las ignora cuando no: un fichero de la plantilla
+  original queda igual que antes (`valorPermutaEUR` cuantifica con `contravalorEUR`).
+- Prueba nueva en `xlsx-roundtrip.test.ts`: una permuta con sus dos valores sobrevive al ciclo
+  **exportar → borrar → reimportar**. La comparación de igualdad decimal del round-trip incluye
+  ahora los dos campos.
+
+### Valoración de la permuta por el mayor de los dos valores (art. 37.1.h LIRPF)
+
+Cierre del hallazgo B1 de la revisión del manual (19-08-2026). La permuta no se cuantifica por
+lo recibido ni por lo entregado, sino por **el mayor de los dos valores de mercado**, y ese
+mismo importe es el coste del lote que nace. El motor lo aplicaba con un único contravalor.
+
+- **Dominio** (`engine/types.ts`): dos campos nuevos y **opcionales** en `Apunte` —
+  `valorMercadoEntregadoEUR` y `valorMercadoRecibidoEUR`—. Sin migración de esquema: un libro
+  anterior no los trae y se calcula exactamente igual que antes.
+- **Motor** (`engine/fifo.ts`): `valorPermutaEUR(ap)` resuelve el valor con el que se cuantifica
+  el apunte y se usa en los dos sitios donde importa —el cierre de la transmisión y la apertura
+  del lote—, de modo que el importe declarado y el coste del lote nuevo no pueden divergir.
+- **Validación** (`engine/validaciones.ts`): dos avisos nuevos, ninguno bloqueante —
+  `PERMUTA_UN_SOLO_VALOR` cuando falta uno de los dos, y `PERMUTA_CONTRAVALOR_NO_ES_EL_MAYOR`
+  cuando el contravalor tecleado no coincide con el que manda la ley.
+- **UI** (`ui/libro/FormularioApunte.tsx`): bloque propio en el formulario, visible solo en la
+  PERMUTA, con los dos campos y la regla enunciada encima.
+- **Pruebas**: `engine/permuta-37-1-h.test.ts`, 9 casos, incluido el ejemplo de María del manual
+  (la ganancia pasa de 70,00 € a 75,00 € y el lote de USDC nace por 875,00 €).
+- **Golden intactos**: la suite pasa de 414 a **424** pruebas verdes sin tocar ninguna fijación.
+
+> Pendiente deliberado: el caso de ejemplo NO se ha cableado a los campos nuevos porque
+> `tests/demo/caso-demo.test.ts` exige que sea estructuralmente idéntico al golden del
+> mini-caso 2024. Cablearlo obliga a mover el golden, y eso es decisión del autor.
+
+### Cabecera de siete pestañas e importación desde exploradores
 
 Ejecución del `docs/ENCARGO_CABECERA_E_IMPORTACION.md` (criterio del autor, 16-08-2026). El
 **motor** (`src/engine/`) no cambia de contrato y los **golden tests** siguen intactos: todo lo
