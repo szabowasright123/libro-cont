@@ -12,7 +12,7 @@
  *
  * Importar (XLSX/CSV/JSON) REEMPLAZA el Libro actual: se avisa siempre antes.
  */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 // La plantilla oficial viaja embebida como asset (sin red en runtime, Regla 3).
 import plantillaUrl from '../../assets/plantilla-taller.xlsx?url'
 import { BTN_PRIMARIO, BTN_SEC, BTN_PELIGRO, Banner } from '../comp'
@@ -148,9 +148,12 @@ function SeccionDesarrollo({ accion, ocupado, aviso }: Props) {
     })
 
   return (
-    <section className="space-y-3 rounded-lg border border-dashed border-slate-300 p-4 dark:border-slate-700">
+    <section
+      className="space-y-3 rounded-lg border border-dashed border-slate-300 p-4 dark:border-slate-700"
+      aria-labelledby="ajustes-desarrollo"
+    >
       <div>
-        <h2 className="text-lg font-semibold">Herramientas de desarrollo</h2>
+        <h2 id="ajustes-desarrollo" className="text-lg font-semibold">Herramientas de desarrollo</h2>
         <p className="text-sm text-slate-500">
           Solo para pruebas. Genera un diario grande para comprobar el rendimiento y la
           virtualización de la tabla. <strong>Reemplaza</strong> el contenido actual.
@@ -249,10 +252,11 @@ function DetalleInforme({ informe }: { informe: InformeImport }) {
 
 /** Tarjeta de una sección con título y descripción. */
 function Seccion({ titulo, desc, children }: { titulo: string; desc: string; children: ReactNode }) {
+  const id = useId()
   return (
-    <section className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+    <section className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800" aria-labelledby={id}>
       <div>
-        <h2 className="text-lg font-semibold">{titulo}</h2>
+        <h2 id={id} className="text-lg font-semibold">{titulo}</h2>
         <p className="text-sm text-slate-500">{desc}</p>
       </div>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
@@ -275,12 +279,17 @@ function BotonArchivo({
   clase?: string
 }) {
   return (
-    <label className={`${clase} cursor-pointer ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
+    <label
+      className={
+        `${clase} cursor-pointer focus-within:ring-2 focus-within:ring-brand-500 ` +
+        (disabled ? 'pointer-events-none opacity-50' : '')
+      }
+    >
       {children}
       <input
         type="file"
         accept={accept}
-        className="hidden"
+        className="sr-only"
         disabled={disabled}
         onChange={(e) => {
           const f = e.target.files?.[0]

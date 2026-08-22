@@ -6,11 +6,13 @@ import { lazy, Suspense } from 'react'
 import { RUTAS, useRuta, irA, rutaPrincipal, subrutasDe, type Ruta } from './rutas'
 import { HomePage } from '../pages/HomePage'
 import { DiarioPage } from '../pages/DiarioPage'
+import { PanelPage } from '../pages/PanelPage'
 import { CarteraPage } from '../pages/CarteraPage'
 import { PosicionesPage } from '../pages/PosicionesPage'
 import { ArchivoPage } from '../pages/ArchivoPage'
 import { TrazabilidadPage } from '../pages/TrazabilidadPage'
 import { FiscalPage } from '../pages/FiscalPage'
+import { CierrePage } from '../pages/CierrePage'
 import { UbicacionesPage } from '../pages/UbicacionesPage'
 import { ParametrosPage } from '../pages/ParametrosPage'
 import { AcercaPage } from '../pages/AcercaPage'
@@ -34,6 +36,8 @@ function Pagina({ ruta }: { ruta: Ruta }) {
       return <HomePage />
     case 'diario':
       return <DiarioPage />
+    case 'panel':
+      return <PanelPage />
     case 'cartera':
       return <CarteraPage />
     case 'posiciones':
@@ -44,6 +48,8 @@ function Pagina({ ruta }: { ruta: Ruta }) {
       return <TrazabilidadPage />
     case 'fiscal':
       return <FiscalPage />
+    case 'cierre':
+      return <CierrePage />
     case 'ubicaciones':
       return <UbicacionesPage />
     case 'parametros':

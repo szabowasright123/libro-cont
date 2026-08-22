@@ -5,6 +5,7 @@ import { useLiveQuery } from '../../data/useLiveQuery'
 import { cargarCasoDemo, estaDemoCargada, estadoCopia, libroVacio } from '../../data/repositorio'
 import { necesitaRecordatorioCopia, textoRecordatorio } from '../../data/copias'
 import { Banner, BTN_PRIMARIO, BTN_SEC } from '../comp'
+import { CasosTaller } from '../casos/CasosTaller'
 import { irA, type Ruta } from '../shell/rutas'
 
 type EstadoDB =
@@ -45,7 +46,7 @@ const PASOS: Paso[] = [
   {
     ruta: 'parametros',
     titulo: 'Revisa los parámetros',
-    descripcion: 'Los 11 tipos de operación, tus activos y las tolerancias del cuadre.',
+    descripcion: 'Los 12 tipos de operación, tus activos y las tolerancias del cuadre.',
     conteo: (c) => c.activos,
     unidad: 'activos',
   },
@@ -132,7 +133,7 @@ export function HomePage() {
       if (
         !window.confirm(
           'Ya tienes datos en el Libro. Cargar el caso de ejemplo REEMPLAZARÁ tu Libro actual ' +
-            'por el caso completo 2024–2025 de demostración.\n\n' +
+            'por el caso completo 2024–2026 de demostración.\n\n' +
             'Aceptar = cargar el ejemplo · Cancelar = no tocar nada.',
         )
       )
@@ -174,6 +175,10 @@ export function HomePage() {
           </span>
         )}
       </section>
+
+      {/* Casos del taller (uno por unidad). Van DESPUÉS del onboarding y no lo desplazan:
+          el caso de ejemplo enseña la aplicación y estos son ejercicios para dar clase. */}
+      <CasosTaller deshabilitado={!listo} />
 
       {/* Recordatorio suave de copia de seguridad (P11): tus datos viven solo en este navegador. */}
       {recordatorio && !copiaDescartada && (

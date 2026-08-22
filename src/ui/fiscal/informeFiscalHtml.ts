@@ -32,7 +32,11 @@ function esc(s: string | undefined | null): string {
 
 /** Fecha/hora local del momento de generación. */
 function ahoraLegible(): string {
-  return fmtFechaHora(new Date().toISOString().slice(0, 19))
+  // `toISOString()` da UTC, y toda la app lee sus ISO como hora LOCAL: sin compensar el
+  // desfase, un informe generado a las 00:30 de julio se fechaba el día anterior a las 22:30.
+  const ahora = new Date()
+  const local = new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60_000)
+  return fmtFechaHora(local.toISOString().slice(0, 19))
 }
 
 /** Marcador de texto manual resaltado (solo para ranuras aún sin literal, p. ej. casillas). */

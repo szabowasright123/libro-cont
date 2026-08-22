@@ -14,11 +14,13 @@ import { useEffect, useState } from 'react'
 export type Ruta =
   | 'inicio'
   | 'diario'
+  | 'panel'
   | 'cartera'
   | 'posiciones'
   | 'archivo'
   | 'trazabilidad'
   | 'fiscal'
+  | 'cierre'
   | 'ubicaciones'
   | 'parametros'
   | 'ajustes'
@@ -48,9 +50,21 @@ export const RUTAS: EntradaNav[] = [
  * La primera entrada de cada grupo es la propia pestaña principal.
  */
 export const SUBRUTAS: Partial<Record<Ruta, EntradaNav[]>> = {
+  // El Panel cuelga del Diario porque es el Diario visto por el motor: los mismos apuntes
+  // convertidos en SALDOS, cola FIFO, CUADRE y conciliación ([MT] U5.4 y U6.3).
+  diario: [
+    { ruta: 'diario', etiqueta: 'Diario' },
+    { ruta: 'panel', etiqueta: 'Panel' },
+  ],
   cartera: [
     { ruta: 'cartera', etiqueta: 'Cartera' },
     { ruta: 'posiciones', etiqueta: 'Posiciones' },
+  ],
+  // El Cierre cuelga de Fiscal porque es el paso siguiente al resumen del ejercicio:
+  // del traslado a Renta ([MT] U9) al cierre y archivo del ejercicio ([MT] U10 y Anexo D).
+  fiscal: [
+    { ruta: 'fiscal', etiqueta: 'Resumen fiscal' },
+    { ruta: 'cierre', etiqueta: 'Cierre del ejercicio' },
   ],
   ajustes: [
     { ruta: 'ajustes', etiqueta: 'Ajustes' },

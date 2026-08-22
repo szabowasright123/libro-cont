@@ -136,7 +136,7 @@ export function TrazabilidadPage() {
 
       {/* Resumen por origen (patrimonio agregado por activo). */}
       {resumenPorActivo.length > 0 && (
-        <section className="flex flex-wrap gap-3">
+        <section className="flex flex-wrap gap-3" aria-label="Resumen del patrimonio por origen">
           {resumenPorActivo.map(([activo, v]) => {
             const total = v.kyc + v.noKyc
             const pctKyc = total !== 0 ? (v.kyc / total) * 100 : 0
@@ -169,9 +169,12 @@ export function TrazabilidadPage() {
       <SeccionCuadre apuntes={apuntes} nombreUbic={nombreUbic} />
 
       {/* Cartera por origen (SALDOS con sello). */}
-      <section className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+      <section
+        className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"
+        aria-labelledby="traz-cartera"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Cartera por origen</h2>
+          <h2 id="traz-cartera" className="text-lg font-semibold">Cartera por origen</h2>
           <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
             <input
               type="checkbox"
@@ -188,16 +191,16 @@ export function TrazabilidadPage() {
           </p>
         ) : (
           <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-sm" aria-labelledby="traz-cartera">
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Ubicación</th>
-                  <th className="px-3 py-2 font-medium">Activo</th>
-                  <th className="px-3 py-2 text-right font-medium">KYC</th>
-                  <th className="px-3 py-2 text-right font-medium">no-KYC</th>
-                  <th className="px-3 py-2 text-right font-medium">Total</th>
-                  <th className="px-3 py-2 font-medium">Origen</th>
-                  <th className="px-3 py-2 text-right font-medium">
+                  <th scope="col" className="px-3 py-2 font-medium">Ubicación</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Activo</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">KYC</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">no-KYC</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">Total</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Origen</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">
                     <span className="sr-only">Acciones</span>
                   </th>
                 </tr>
@@ -280,7 +283,12 @@ function FilaCartera({
       <td className="px-3 py-2 text-right font-medium tabular-nums">
         {fmtDecimal(celda.total)}
         {celda.deficit && (
-          <span className="ml-1 text-red-600" title="Salida sin origen suficiente (saldo negativo)">
+          <span
+            className="ml-1 text-red-600"
+            role="img"
+            aria-label="Salida sin origen suficiente (saldo negativo)"
+            title="Salida sin origen suficiente (saldo negativo)"
+          >
             ⚠
           </span>
         )}
@@ -301,7 +309,13 @@ function FilaCartera({
         )}
       </td>
       <td className="px-3 py-2 text-right">
-        <button type="button" className={BTN_SEC} onClick={onElegir} disabled={celda.ubicacion === UBICACION_EXTERIOR}>
+        <button
+          type="button"
+          className={BTN_SEC}
+          aria-label={`¿Cómo demuestro el saldo de ${celda.activo} en ${nombreUbic(celda.ubicacion)}?`}
+          onClick={onElegir}
+          disabled={celda.ubicacion === UBICACION_EXTERIOR}
+        >
           ¿Cómo lo demuestro?
         </button>
       </td>

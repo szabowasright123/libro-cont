@@ -1,7 +1,7 @@
 /**
  * ParametrosPage — parámetros del Libro.
  *
- *  1. Catálogo CERRADO de 11 tipos en SOLO-LECTURA (flags + calificación fiscal),
+ *  1. Catálogo CERRADO de 12 tipos en SOLO-LECTURA (flags + calificación fiscal),
  *     leído de la constante del motor CATALOGO_TIPOS (Regla 7: no añadir tipos).
  *  2. Catálogo de activos EDITABLE (BTC y EUR de serie, no borrables si tienen
  *     apuntes; nunca borrables por ser de serie).
@@ -49,24 +49,24 @@ export function ParametrosPage() {
 /** 1 · Catálogo cerrado de tipos (solo lectura). */
 function SeccionTipos() {
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" aria-labelledby="param-tipos">
       <div>
-        <h2 className="text-lg font-semibold">Tipos de operación</h2>
+        <h2 id="param-tipos" className="text-lg font-semibold">Tipos de operación</h2>
         <p className="text-sm text-slate-500">
-          Catálogo cerrado de 11 tipos (solo lectura). Los textos fiscales se copian
+          Catálogo cerrado de 12 tipos (solo lectura). Los textos fiscales se copian
           literales de los manuales; son orientativos.
         </p>
       </div>
       <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse text-sm" aria-labelledby="param-tipos">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
             <tr>
-              <th className="px-3 py-2 font-medium">Tipo</th>
-              <th className="px-3 py-2 text-center font-medium">¿Cuadra?</th>
-              <th className="px-3 py-2 text-center font-medium">¿Alteración?</th>
-              <th className="px-3 py-2 text-center font-medium">¿Abre lote?</th>
-              <th className="px-3 py-2 text-center font-medium">¿Consume?</th>
-              <th className="px-3 py-2 font-medium">Calificación fiscal (orientativa)</th>
+              <th scope="col" className="px-3 py-2 font-medium">Tipo</th>
+              <th scope="col" className="px-3 py-2 text-center font-medium">¿Simétrica?</th>
+              <th scope="col" className="px-3 py-2 text-center font-medium">¿Alteración?</th>
+              <th scope="col" className="px-3 py-2 text-center font-medium">¿Abre lote?</th>
+              <th scope="col" className="px-3 py-2 text-center font-medium">¿Consume?</th>
+              <th scope="col" className="px-3 py-2 font-medium">Calificación fiscal (orientativa)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -74,8 +74,8 @@ function SeccionTipos() {
               const d = CATALOGO_TIPOS[t]
               return (
                 <tr key={t} className="align-top">
-                  <td className="whitespace-nowrap px-3 py-2 font-medium">{d.etiqueta}</td>
-                  <td className="px-3 py-2 text-center"><Flag v={d.cuadra} /></td>
+                  <th scope="row" className="whitespace-nowrap px-3 py-2 text-left font-medium">{d.etiqueta}</th>
+                  <td className="px-3 py-2 text-center"><Flag v={d.simetrico} /></td>
                   <td className="px-3 py-2 text-center"><Flag v={d.alteracion} /></td>
                   <td className="px-3 py-2 text-center"><Flag v={d.abreLote} /></td>
                   <td className="px-3 py-2 text-center"><Flag v={d.consumeLote} /></td>
@@ -87,6 +87,9 @@ function SeccionTipos() {
         </table>
       </div>
       <p className="text-xs italic text-slate-400">
+        «¿Simétrica?» describe la forma del apunte —si tiene salida y entrada equivalentes—,
+        no si cuadra: el cuadre computa toda cantidad anotada. Una entrada sin salida (staking,
+        minería, airdrop) cuadra igual, y su asimetría es justamente lo que la hace renta.
         Calificaciones de carácter orientativo (no constituyen asesoramiento fiscal).
       </p>
     </section>
@@ -167,10 +170,10 @@ function SeccionActivos() {
   const filas = activos.estado === 'listo' ? activos.datos : []
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" aria-labelledby="param-activos">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Activos</h2>
+          <h2 id="param-activos" className="text-lg font-semibold">Activos</h2>
           <p className="text-sm text-slate-500">
             BTC y EUR vienen de serie (no borrables). Regla de identidad: BTC ≠ WBTC ≠ Lightning.
           </p>
@@ -184,31 +187,41 @@ function SeccionActivos() {
       {aviso && <Banner tono="exito" onCerrar={() => setAviso(null)}>{aviso}</Banner>}
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse text-sm" aria-labelledby="param-activos">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
             <tr>
-              <th className="px-3 py-2 font-medium">Símbolo</th>
-              <th className="px-3 py-2 font-medium">Nombre</th>
-              <th className="px-3 py-2 text-center font-medium">Decimales</th>
-              <th className="px-3 py-2 text-center font-medium">Fiat</th>
-              <th className="px-3 py-2 text-right font-medium">Acciones</th>
+              <th scope="col" className="px-3 py-2 font-medium">Símbolo</th>
+              <th scope="col" className="px-3 py-2 font-medium">Nombre</th>
+              <th scope="col" className="px-3 py-2 text-center font-medium">Decimales</th>
+              <th scope="col" className="px-3 py-2 text-center font-medium">Fiat</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {filas.map((a) => (
               <tr key={a.simbolo} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
-                <td className="px-3 py-2 font-mono font-medium">{a.simbolo}</td>
+                <th scope="row" className="px-3 py-2 text-left font-mono font-medium">{a.simbolo}</th>
                 <td className="px-3 py-2">{a.nombre}</td>
                 <td className="px-3 py-2 text-center tabular-nums">{a.decimales}</td>
                 <td className="px-3 py-2 text-center">{a.esFiat ? 'Sí' : 'No'}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right">
-                  <button type="button" className={`${BTN_SEC} mr-1`} onClick={() => abrirEdicion(a)}>
+                  <button
+                    type="button"
+                    className={`${BTN_SEC} mr-1`}
+                    aria-label={`Editar el activo ${a.simbolo}`}
+                    onClick={() => abrirEdicion(a)}
+                  >
                     Editar
                   </button>
                   {deSerie(a.simbolo) ? (
                     <span className="text-xs italic text-slate-400">de serie</span>
                   ) : (
-                    <button type="button" className={BTN_PELIGRO} onClick={() => borrar(a)}>
+                    <button
+                      type="button"
+                      className={BTN_PELIGRO}
+                      aria-label={`Borrar el activo ${a.simbolo}`}
+                      onClick={() => borrar(a)}
+                    >
                       Borrar
                     </button>
                   )}
@@ -322,10 +335,10 @@ function SeccionTolerancias() {
   }
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" aria-labelledby="param-tolerancias">
       <div>
-        <h2 className="text-lg font-semibold">Tolerancias del cuadre</h2>
-        <p className="text-sm text-slate-500">
+        <h2 id="param-tolerancias" className="text-lg font-semibold">Tolerancias del cuadre</h2>
+        <p id="param-tolerancias-ayuda" className="text-sm text-slate-500">
           Semáforo por |diferencia|: ≤ verde → OK; ≤ ámbar → REVISAR; mayor → ERROR.
         </p>
       </div>
@@ -334,11 +347,23 @@ function SeccionTolerancias() {
       <div className="flex flex-wrap items-end gap-4 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-semaforo-ok">Verde (OK) ≤</span>
-          <input className={`${INPUT} w-40`} value={verde} disabled={!cargado} onChange={(e) => setVerde(e.target.value)} />
+          <input
+            className={`${INPUT} w-40`}
+            value={verde}
+            disabled={!cargado}
+            aria-describedby="param-tolerancias-ayuda"
+            onChange={(e) => setVerde(e.target.value)}
+          />
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-semaforo-revisar">Ámbar (REVISAR) ≤</span>
-          <input className={`${INPUT} w-40`} value={ambar} disabled={!cargado} onChange={(e) => setAmbar(e.target.value)} />
+          <input
+            className={`${INPUT} w-40`}
+            value={ambar}
+            disabled={!cargado}
+            aria-describedby="param-tolerancias-ayuda"
+            onChange={(e) => setAmbar(e.target.value)}
+          />
         </label>
         <button type="button" className={BTN_PRIMARIO} onClick={guardar} disabled={!cargado}>
           Guardar tolerancias

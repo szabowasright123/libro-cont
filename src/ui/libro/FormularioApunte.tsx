@@ -59,8 +59,13 @@ interface Props {
   onGuardado: (mensaje: string) => void
 }
 
-/** Deduce el sentido de una DONACIÓN ya registrada a partir de qué lado tiene. */
+/**
+ * Deduce el sentido de una DONACIÓN ya registrada. Manda el campo `sentido` del apunte si
+ * está; si no —Libros anteriores a la v1.6.0— se infiere de qué lado tiene, que es lo que
+ * hacía esta función cuando el sentido solo vivía en la pantalla y no se guardaba.
+ */
 function sentidoDeBorrador(b: BorradorApunte): SentidoDonacion {
+  if (b.sentido === 'entregada' || b.sentido === 'recibida') return b.sentido
   return b.activoSalida ? 'entregada' : 'recibida'
 }
 
@@ -90,6 +95,15 @@ function aDominioValidable(b: BorradorApunte): Apunte {
   if (cc) ap.comisionCantidad = cc
   if (b.comisionActivo) ap.comisionActivo = b.comisionActivo
   if (cv !== undefined) ap.contravalorEUR = cv
+  // Art. 37.1.h) LIRPF (solo PERMUTA): los dos valores de mercado. El motor aplica el mayor.
+  const vme = aDecimalDominio(b.valorMercadoEntregadoEUR)
+  const vmr = aDecimalDominio(b.valorMercadoRecibidoEUR)
+  if (vme !== undefined) ap.valorMercadoEntregadoEUR = vme
+  if (vmr !== undefined) ap.valorMercadoRecibidoEUR = vmr
+  // Sentido de DONACIÓN / AJUSTE: el formulario ya lo preguntaba, pero hasta la v1.6.0 se
+  // quedaba en la pantalla y no llegaba al apunte, de modo que el motor no movía la cola
+  // FIFO. Ahora se proyecta y la validación puede exigirlo (ver engine/conciliacion.ts).
+  if (b.sentido) ap.sentido = b.sentido
   if (b.notas) ap.notas = b.notas
   if (b.rectificaAUid) ap.rectificaA = b.rectificaAUid
   return ap
@@ -111,22 +125,37 @@ function sanear(b: BorradorApunte, campos: CamposApunte): BorradorApunte {
     delete out.comisionActivo
   }
   if (campos.contravalor === 'oculto') delete out.contravalorEUR
+  // Los dos valores de mercado solo tienen sentido en la PERMUTA (art. 37.1.h LIRPF).
+  if (b.tipo !== 'PERMUTA') {
+    delete out.valorMercadoEntregadoEUR
+    delete out.valorMercadoRecibidoEUR
+  }
   if (campos.rectificaA === 'oculto') delete out.rectificaAUid
   // El subtipo solo aplica a PÉRDIDA (derivada D2): en el resto se descarta.
   if (b.tipo !== 'PERDIDA') delete out.subtipoPerdida
+  // El sentido solo tiene significado donde el catálogo dice «según el caso».
+  if (b.tipo !== 'DONACION' && b.tipo !== 'AJUSTE') delete out.sentido
   // Normaliza cantidades a decimal de dominio (punto interno); descarta las que no
   // sean un número válido para no persistir texto a medio teclear.
   normalizarCampo(out, 'cantidadEntrada')
   normalizarCampo(out, 'cantidadSalida')
   normalizarCampo(out, 'comisionCantidad')
   normalizarCampo(out, 'contravalorEUR')
+  normalizarCampo(out, 'valorMercadoEntregadoEUR')
+  normalizarCampo(out, 'valorMercadoRecibidoEUR')
   return out
 }
 
 /** Normaliza un campo numérico del borrador a decimal de dominio (o lo elimina). */
 function normalizarCampo(
   b: BorradorApunte,
-  campo: 'cantidadEntrada' | 'cantidadSalida' | 'comisionCantidad' | 'contravalorEUR',
+  campo:
+    | 'cantidadEntrada'
+    | 'cantidadSalida'
+    | 'comisionCantidad'
+    | 'contravalorEUR'
+    | 'valorMercadoEntregadoEUR'
+    | 'valorMercadoRecibidoEUR',
 ): void {
   const v = aDecimalDominio(b[campo])
   if (v === undefined) delete b[campo]
@@ -151,8 +180,15 @@ export function FormularioApunte({
   // justificantes ya guardados del apunte; en alta/duplicado, empieza vacío.
   useEffect(() => {
     if (!apertura) return
-    setBorrador(apertura.borrador)
-    setSentido(sentidoDeBorrador(apertura.borrador))
+    // Un borrador de DONACIÓN o AJUSTE que llegue sin `sentido` —alta nueva, o un apunte
+    // guardado antes de la v1.6.0— se abre ya con el que muestra la pantalla, para que lo
+    // que el alumno ve y lo que el motor calcula no se separen ni un instante.
+    const b = apertura.borrador
+    const s = sentidoDeBorrador(b)
+    if (b.tipo === 'DONACION' && !b.sentido) setBorrador({ ...b, sentido: s })
+    else if (b.tipo === 'AJUSTE' && !b.sentido) setBorrador({ ...b, sentido: 'solo-saldos' })
+    else setBorrador(b)
+    setSentido(s)
     setError(null)
     if (apertura.uid) {
       cargarBorradores(apertura.uid).then(setJustificantes).catch(() => setJustificantes([]))
@@ -200,6 +236,11 @@ export function FormularioApunte({
       // PÉRDIDA: arranca «sin clasificar» hasta que el alumno elija el subtipo (D2).
       if (tipo === 'PERDIDA') nb.subtipoPerdida = b.subtipoPerdida ?? 'sin-clasificar'
       else delete nb.subtipoPerdida
+      // Sentido: la DONACIÓN arranca en el que muestra la pantalla y el AJUSTE en su
+      // defecto documentado (corrige saldos, no cola). El resto de tipos no lo llevan.
+      if (tipo === 'DONACION') nb.sentido = nuevoSentido
+      else if (tipo === 'AJUSTE') nb.sentido = 'solo-saldos'
+      else delete nb.sentido
       return nb
     })
   }
@@ -207,7 +248,7 @@ export function FormularioApunte({
   const cambiarSentidoDonacion = (s: SentidoDonacion) => {
     setSentido(s)
     setBorrador((b) => {
-      const nb: BorradorApunte = { ...b }
+      const nb: BorradorApunte = { ...b, sentido: s }
       if (s === 'entregada') {
         delete nb.activoEntrada
         delete nb.cantidadEntrada
@@ -422,6 +463,43 @@ export function FormularioApunte({
                 onChange={(e) => set({ contravalorEUR: e.target.value })}
               />
             </label>
+          )}
+
+          {/* PERMUTA · art. 37.1.h) LIRPF: los dos valores de mercado. Manda el mayor. */}
+          {borrador.tipo === 'PERMUTA' && (
+            <div className="sm:col-span-2 rounded-md border border-amber-300 bg-amber-50/60 p-3 text-sm dark:border-amber-800/60 dark:bg-amber-950/20">
+              <p className="mb-2 font-medium">
+                Valores de mercado de la permuta{' '}
+                <span className="font-normal text-slate-500 dark:text-slate-400">
+                  — el art. 37.1.h) LIRPF cuantifica por el <strong>mayor</strong> de los dos, y ese
+                  importe es también el coste del lote que nace (manual, U6.4)
+                </span>
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block">Valor de mercado de lo entregado (EUR)</span>
+                  <input
+                    className={INPUT}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    aria-label="Valor de mercado de lo entregado en euros"
+                    value={borrador.valorMercadoEntregadoEUR ?? ''}
+                    onChange={(e) => set({ valorMercadoEntregadoEUR: e.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block">Valor de mercado de lo recibido (EUR)</span>
+                  <input
+                    className={INPUT}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    aria-label="Valor de mercado de lo recibido en euros"
+                    value={borrador.valorMercadoRecibidoEUR ?? ''}
+                    onChange={(e) => set({ valorMercadoRecibidoEUR: e.target.value })}
+                  />
+                </label>
+              </div>
+            </div>
           )}
         </div>
 

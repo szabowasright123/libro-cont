@@ -162,7 +162,7 @@ export function UbicacionesPage() {
       <UnidadManual ruta="ubicaciones" />
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Ubicaciones</h1>
+          <h1 id="ubic-titulo" className="text-2xl font-bold tracking-tight">Ubicaciones</h1>
           <p className="text-sm text-slate-500">
             Dónde custodias o mueves activos. La columna KYC vertebra el Bloque 1.
           </p>
@@ -184,19 +184,19 @@ export function UbicacionesPage() {
       )}
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse text-sm" aria-labelledby="ubic-titulo">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
             <tr>
-              <th className="px-3 py-2 font-medium">Nombre</th>
-              <th className="px-3 py-2 font-medium">Tipo</th>
-              <th className="px-3 py-2 font-medium">KYC</th>
-              <th className="px-3 py-2 font-medium">Extranjero</th>
-              <th className="px-3 py-2 font-medium">Vía / evidencia</th>
-              <th className="px-3 py-2 font-medium">Direcciones</th>
-              <th className="px-3 py-2 font-medium">Alta</th>
-              <th className="px-3 py-2 font-medium">Cierre</th>
-              <th className="px-3 py-2 font-medium">Notas</th>
-              <th className="px-3 py-2 text-right font-medium">Acciones</th>
+              <th scope="col" className="px-3 py-2 font-medium">Nombre</th>
+              <th scope="col" className="px-3 py-2 font-medium">Tipo</th>
+              <th scope="col" className="px-3 py-2 font-medium">KYC</th>
+              <th scope="col" className="px-3 py-2 font-medium">Extranjero</th>
+              <th scope="col" className="px-3 py-2 font-medium">Vía / evidencia</th>
+              <th scope="col" className="px-3 py-2 font-medium">Direcciones</th>
+              <th scope="col" className="px-3 py-2 font-medium">Alta</th>
+              <th scope="col" className="px-3 py-2 font-medium">Cierre</th>
+              <th scope="col" className="px-3 py-2 font-medium">Notas</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -254,10 +254,20 @@ export function UbicacionesPage() {
                   {u.notas ?? '—'}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right">
-                  <button type="button" className={`${BTN_SEC} mr-1`} onClick={() => abrirEdicion(u)}>
+                  <button
+                    type="button"
+                    className={`${BTN_SEC} mr-1`}
+                    aria-label={`Editar la ubicación ${u.nombre}`}
+                    onClick={() => abrirEdicion(u)}
+                  >
                     Editar
                   </button>
-                  <button type="button" className={BTN_PELIGRO} onClick={() => borrar(u)}>
+                  <button
+                    type="button"
+                    className={BTN_PELIGRO}
+                    aria-label={`Borrar la ubicación ${u.nombre}`}
+                    onClick={() => borrar(u)}
+                  >
                     Borrar
                   </button>
                 </td>
@@ -404,11 +414,17 @@ export function UbicacionesPage() {
                   <button
                     type="button"
                     className="text-xs text-brand-600 underline underline-offset-2 hover:text-brand-700"
+                    aria-expanded={verPorque}
+                    aria-controls="ubic-nota-criterio-721"
                     onClick={() => setVerPorque((v) => !v)}
                   >
                     ¿por qué?
                   </button>
-                  {verPorque && <p className="text-xs text-stone-500">{NOTA_CRITERIO_721}</p>}
+                  {verPorque && (
+                    <p id="ubic-nota-criterio-721" className="text-xs text-stone-500">
+                      {NOTA_CRITERIO_721}
+                    </p>
+                  )}
                 </div>
               </Banner>
             )
@@ -492,15 +508,17 @@ export function UbicacionesPage() {
                 rows={3}
                 placeholder={'Una por línea:\n0x1234…\nbc1q…'}
                 value={form.direcciones}
+                aria-describedby="ubic-ayuda-direcciones"
                 onChange={(e) => setForm({ ...form, direcciones: e.target.value })}
               />
             </label>
-            <p className="-mt-1 text-xs text-stone-500 dark:text-slate-400">
+            <p id="ubic-ayuda-direcciones" className="-mt-1 text-xs text-stone-500 dark:text-slate-400">
               Sirven para la <strong>importación desde exploradores</strong>: si el origen y el
               destino de un movimiento son direcciones tuyas, la app propone TRANSFERENCIA
               (traslado, sin efecto fiscal). Si solo consta una, hay frontera con el exterior y
               la calificación la pones tú. Se quedan en tu navegador: la app no consulta ninguna
               cadena.
+              <span aria-live="polite">
               {(() => {
                 const ds = parsearDirecciones(form.direcciones)
                 const raras = ds.filter((d) => d.startsWith('0x') && !pareceDireccionEvm(d))
@@ -520,6 +538,7 @@ export function UbicacionesPage() {
                   </>
                 )
               })()}
+              </span>
             </p>
 
             <label className="block text-sm">

@@ -97,7 +97,7 @@ export function PosicionesPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Posiciones</h2>
+          <h2 id="pos-titulo" className="text-2xl font-bold">Posiciones</h2>
           <p className="text-sm text-slate-500">
             {posiciones.length} posición(es) · {abiertas.length} abierta(s). Agrupan las patas de
             un mismo evento a lo largo del tiempo.
@@ -125,19 +125,22 @@ export function PosicionesPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" role="list" aria-labelledby="pos-titulo">
           {posiciones.map((p) => {
             const patas = patasPorPosicion.get(p.id) ?? []
             const desplegada = abierta === p.id
             return (
               <div
                 key={p.id}
+                role="listitem"
                 className="rounded-md border border-stone-200 bg-white dark:border-slate-700 dark:bg-slate-900"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                   <button
                     type="button"
                     className="flex-1 text-left"
+                    aria-expanded={desplegada}
+                    aria-controls={`pos-patas-${p.id}`}
                     onClick={() => setAbierta(desplegada ? null : p.id)}
                   >
                     <span className="flex flex-wrap items-baseline gap-2">
@@ -164,34 +167,43 @@ export function PosicionesPage() {
                     <select
                       className={`${INPUT} w-32`}
                       value={p.estado}
+                      aria-label={`Estado de la posición ${p.protocolo}`}
                       onChange={(e) => cerrarPosicion(p.id, e.target.value as EstadoPosicion)}
                     >
                       <option value="abierta">Abierta</option>
                       <option value="cerrada">Cerrada</option>
                       <option value="liquidada">Liquidada</option>
                     </select>
-                    <button type="button" className={BTN_PELIGRO} onClick={() => borrar(p.id)}>
+                    <button
+                      type="button"
+                      className={BTN_PELIGRO}
+                      aria-label={`Borrar la posición ${p.protocolo}`}
+                      onClick={() => borrar(p.id)}
+                    >
                       Borrar
                     </button>
                   </div>
                 </div>
 
                 {desplegada && (
-                  <div className="border-t border-stone-200 px-4 py-3 dark:border-slate-700">
+                  <div
+                    id={`pos-patas-${p.id}`}
+                    className="border-t border-stone-200 px-4 py-3 dark:border-slate-700"
+                  >
                     {patas.length === 0 ? (
                       <p className="text-sm text-slate-400">
                         Sin apuntes vinculados todavía.
                       </p>
                     ) : (
-                      <table className="w-full text-sm">
+                      <table className="w-full text-sm" aria-label={`Apuntes de la posición ${p.protocolo}`}>
                         <thead className="text-xs uppercase tracking-wide text-slate-400">
                           <tr>
-                            <th className="py-1 text-left">Nº</th>
-                            <th className="py-1 text-left">Fecha</th>
-                            <th className="py-1 text-left">Tipo</th>
-                            <th className="py-1 text-left">Evento</th>
-                            <th className="py-1 text-right">Movimiento</th>
-                            <th className="py-1 text-right">Contravalor</th>
+                            <th scope="col" className="py-1 text-left">Nº</th>
+                            <th scope="col" className="py-1 text-left">Fecha</th>
+                            <th scope="col" className="py-1 text-left">Tipo</th>
+                            <th scope="col" className="py-1 text-left">Evento</th>
+                            <th scope="col" className="py-1 text-right">Movimiento</th>
+                            <th scope="col" className="py-1 text-right">Contravalor</th>
                           </tr>
                         </thead>
                         <tbody>

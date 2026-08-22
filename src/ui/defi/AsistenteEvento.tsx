@@ -99,7 +99,8 @@ const FAMILIAS: { titulo: string; opciones: { clase: Clase; etiqueta: string; ay
       {
         clase: 'derivado',
         etiqueta: 'Cierro una posición en derivados',
-        ayuda: 'Liquidación por diferencias: GyP de la base del ahorro. El art. 37.1.m no aplica.',
+        ayuda:
+          'Liquidación por diferencias: GyP de la base del ahorro (art. 46.b). Un apunte por corte de liquidación, no uno solo al cierre. El art. 37.1.m no aplica.',
       },
       {
         clase: 'hard-fork',

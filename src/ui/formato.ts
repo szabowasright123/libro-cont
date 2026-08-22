@@ -11,6 +11,26 @@
 /** Símbolo especial de la ubicación de frontera (para mostrarla con etiqueta). */
 export const ETIQUETA_EXTERIOR = 'EXTERIOR (frontera)'
 
+/** Decimales con los que se PINTA una cantidad de activo (la precisión del satoshi). */
+export const DECIMALES_CANTIDAD = 8
+
+/**
+ * Cantidad de un activo, recortada a la precisión del satoshi para pintarla.
+ *
+ * Hace falta desde D0: cuando una comisión se paga en cripto, su coste se retira PRORRATEADO
+ * entre los lotes vivos, y ese prorrateo produce cantidades periódicas. Sin recortar, la
+ * columna «cantidad restante» de un lote enseña cuarenta cifras decimales
+ * —«0,3207226017822168148965534586449619129358»— que no son un número, son un accidente
+ * aritmético: ilegible en pantalla e imposible de cotejar contra una wallet.
+ *
+ * Se recorta la PRESENTACIÓN, nunca el dominio: el valor exacto sigue en el apunte, y quien
+ * lo pinte debe dejarlo a mano (el `title` de la celda) para que se pueda cotejar.
+ */
+export function fmtCantidad(valor: string | undefined | null): string {
+  if (valor === undefined || valor === null || valor === '') return '—'
+  return fmtDecimal(redondearCadena(valor, DECIMALES_CANTIDAD))
+}
+
 /**
  * Cadena decimal interna («1234.5») → presentación es-ES («1.234,5»).
  * No redondea ni añade ceros: respeta los decimales que trae la cadena.

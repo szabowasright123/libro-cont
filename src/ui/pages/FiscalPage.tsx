@@ -1,15 +1,17 @@
 /**
  * FiscalPage — Resumen fiscal orientativo del ejercicio (Bloque 3, P7).
  *
- * Presenta los cinco cajones fiscales (ahorro, RCM, actividad económica, base general,
- * pérdidas) que calcula `engine/fiscal`, el mapa orientativo a casillas de Renta
+ * Presenta las cinco salidas del registro que calcula `engine/fiscal` —ganancias y pérdidas
+ * por transmisión, RCM, actividad económica, base general y pérdidas sin transmisión—, con la
+ * caja de `derivados` desglosada dentro de la primera (una liquidación por diferencias va al
+ * mismo apartado, pero no consume lote FIFO). Añade el mapa orientativo a casillas de Renta
  * (`data/casillas-AAAA`), los avisos informativos 721 y 172/173, y el disclaimer permanente.
  * Exporta el resumen a HTML imprimible y a CSV.
  *
  * Regla de oro 5: los textos con calificación fiscal son literales del manual del taller
  * (viven en `engine/fiscal`); aquí solo se muestran. El motor solo aporta números.
  */
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { SimboloActivo } from '../../engine/types'
 import {
   calcularResumenFiscal,
@@ -179,6 +181,7 @@ export function FiscalPage() {
             <select
               className={`${INPUT} inline-block w-auto`}
               value={ejercicioActivo}
+              aria-label="Ejercicio fiscal"
               onChange={(e) => setEjercicio(Number(e.target.value))}
             >
               {(ejercicios.length > 0 ? ejercicios : [ejercicioActivo]).map((y) => (
@@ -217,7 +220,10 @@ export function FiscalPage() {
           </div>
 
           {/* KPIs por cajón. */}
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <section
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+            aria-label="Totales por cajón fiscal"
+          >
             <Kpi etiqueta="Neto del ahorro" valor={resumen.ahorro.netoEUR} />
             <Kpi etiqueta="Derivados" valor={resumen.derivados.totalEUR} />
             <Kpi etiqueta="RCM" valor={resumen.rcm.totalEUR} />
@@ -252,8 +258,11 @@ export function FiscalPage() {
           <CajonPerdidas resumen={resumen} casillas={casillas} subtipoPorApunte={subtipoPorApunte} />
 
           {/* Mapa a casillas de Renta. */}
-          <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-            <h2 className="text-lg font-semibold">Mapa orientativo a casillas de Renta</h2>
+          <section
+            className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800"
+            aria-labelledby="fiscal-casillas"
+          >
+            <h2 id="fiscal-casillas" className="text-lg font-semibold">Mapa orientativo a casillas de Renta</h2>
             {!esDelEjercicio && (
               <Banner tono="info">
                 No hay mapa de casillas para {ejercicioActivo}
@@ -265,9 +274,9 @@ export function FiscalPage() {
               <table className="w-full border-collapse text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Apartado</th>
-                    <th className="px-3 py-2 font-medium">Casilla</th>
-                    <th className="px-3 py-2 font-medium">Nota</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Apartado</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Casilla</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Nota</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -295,8 +304,11 @@ export function FiscalPage() {
           />
 
           {/* Nota 172/173. */}
-          <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-            <h2 className="text-lg font-semibold">Nota informativa · Modelos 172 / 173</h2>
+          <section
+            className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800"
+            aria-labelledby="fiscal-172-173"
+          >
+            <h2 id="fiscal-172-173" className="text-lg font-semibold">Nota informativa · Modelos 172 / 173</h2>
             <p className="text-sm leading-relaxed text-slate-500">{NOTA_172_173}</p>
             <p className="text-xs text-slate-400">
               Recordatorio: son declaraciones informativas de terceros (proveedores establecidos en
@@ -349,9 +361,10 @@ function CalificacionLinea({ concepto }: { concepto: ConceptoFiscal }) {
 /** Cajón del ahorro (transmisiones onerosas). */
 function CajonAhorro({ resumen, casillas }: { resumen: ResumenFiscal; casillas: readonly MapaCasilla[] }) {
   const { ahorro } = resumen
+  const id = useId()
   return (
-    <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-      <h2 className="text-lg font-semibold">
+    <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800" aria-labelledby={id}>
+      <h2 id={id} className="text-lg font-semibold">
         {CONCEPTOS_FISCALES.ahorro.etiqueta}{' '}
         <span className="text-sm font-normal text-slate-400">· {CONCEPTOS_FISCALES.ahorro.baseImponible}</span>
       </h2>
@@ -361,13 +374,13 @@ function CajonAhorro({ resumen, casillas }: { resumen: ResumenFiscal; casillas: 
         <table className="w-full border-collapse text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
             <tr>
-              <th className="px-3 py-2 font-medium">Apunte</th>
-              <th className="px-3 py-2 font-medium">Fecha</th>
-              <th className="px-3 py-2 font-medium">Tipo</th>
-              <th className="px-3 py-2 font-medium">Activo</th>
-              <th className="px-3 py-2 text-right font-medium">Valor neto</th>
-              <th className="px-3 py-2 text-right font-medium">Coste FIFO</th>
-              <th className="px-3 py-2 text-right font-medium">Resultado</th>
+              <th scope="col" className="px-3 py-2 font-medium">Apunte</th>
+              <th scope="col" className="px-3 py-2 font-medium">Fecha</th>
+              <th scope="col" className="px-3 py-2 font-medium">Tipo</th>
+              <th scope="col" className="px-3 py-2 font-medium">Activo</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Valor neto</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Coste FIFO</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Resultado</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -430,9 +443,10 @@ function CajonIngresos({
   bloque: ResumenFiscal['rcm']
   casillas: readonly MapaCasilla[]
 }) {
+  const id = useId()
   return (
-    <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-      <h2 className="text-lg font-semibold">
+    <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800" aria-labelledby={id}>
+      <h2 id={id} className="text-lg font-semibold">
         {titulo}{' '}
         <span className="text-sm font-normal text-slate-400">· {CONCEPTOS_FISCALES[concepto].baseImponible}</span>
       </h2>
@@ -445,11 +459,11 @@ function CajonIngresos({
         <table className="w-full border-collapse text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
             <tr>
-              <th className="px-3 py-2 font-medium">Apunte</th>
-              <th className="px-3 py-2 font-medium">Fecha</th>
-              <th className="px-3 py-2 font-medium">Activo</th>
-              <th className="px-3 py-2 text-right font-medium">Cantidad</th>
-              <th className="px-3 py-2 text-right font-medium">Importe</th>
+              <th scope="col" className="px-3 py-2 font-medium">Apunte</th>
+              <th scope="col" className="px-3 py-2 font-medium">Fecha</th>
+              <th scope="col" className="px-3 py-2 font-medium">Activo</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Cantidad</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Importe</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -494,9 +508,10 @@ function CajonPerdidas({
   subtipoPorApunte: ReadonlyMap<string, SubtipoPerdida>
 }) {
   const { perdidas } = resumen
+  const id = useId()
   return (
-    <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-      <h2 className="text-lg font-semibold">{CONCEPTOS_FISCALES.perdidas.etiqueta}</h2>
+    <section className="space-y-2 rounded-lg border border-slate-200 p-4 dark:border-slate-800" aria-labelledby={id}>
+      <h2 id={id} className="text-lg font-semibold">{CONCEPTOS_FISCALES.perdidas.etiqueta}</h2>
       {/* Rótulo fijo (derivada D2): siempre BASE GENERAL, nunca ahorro. */}
       <p className="text-sm font-semibold text-brand-700">{ROTULO_PERDIDAS}</p>
       <CalificacionLinea concepto="perdidas" />
@@ -512,13 +527,13 @@ function CajonPerdidas({
         <table className="w-full border-collapse text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
             <tr>
-              <th className="px-3 py-2 font-medium">Apunte</th>
-              <th className="px-3 py-2 font-medium">Fecha</th>
-              <th className="px-3 py-2 font-medium">Activo</th>
-              <th className="px-3 py-2 text-right font-medium">Cantidad</th>
-              <th className="px-3 py-2 text-right font-medium">Coste FIFO</th>
-              <th className="px-3 py-2 text-right font-medium">Resultado</th>
-              <th className="px-3 py-2 font-medium">Prueba</th>
+              <th scope="col" className="px-3 py-2 font-medium">Apunte</th>
+              <th scope="col" className="px-3 py-2 font-medium">Fecha</th>
+              <th scope="col" className="px-3 py-2 font-medium">Activo</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Cantidad</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Coste FIFO</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Resultado</th>
+              <th scope="col" className="px-3 py-2 font-medium">Prueba</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -604,8 +619,13 @@ function Aviso721({
   }, [aviso])
 
   return (
-    <section className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-      <h2 className="text-lg font-semibold">Aviso informativo · Modelo 721 (saldos en el extranjero)</h2>
+    <section
+      className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800"
+      aria-labelledby="fiscal-721"
+    >
+      <h2 id="fiscal-721" className="text-lg font-semibold">
+        Aviso informativo · Modelo 721 (saldos en el extranjero)
+      </h2>
       <p className="text-sm leading-relaxed text-slate-500">{AVISO_721}</p>
       <p className="text-xs text-slate-400">
         Aviso, nunca cálculo de obligación. Saldos en ubicaciones marcadas como{' '}
@@ -632,12 +652,14 @@ function Aviso721({
                       inputMode="decimal"
                       placeholder="p. ej. 60.000"
                       value={precios[a] ?? ''}
+                      aria-label={`Precio en euros por unidad de ${a}`}
+                      aria-describedby="fiscal-721-precios-ayuda"
                       onChange={(e) => setPrecios((p) => ({ ...p, [a]: e.target.value }))}
                     />
                   </label>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-slate-400">
+              <p id="fiscal-721-precios-ayuda" className="mt-2 text-xs text-slate-400">
                 Sin precio, la cripto queda «sin valorar» y el total del aviso es un mínimo.
               </p>
             </div>
@@ -687,10 +709,10 @@ function CorteAviso({
             <table className="w-full border-collapse text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Ubicación</th>
-                  <th className="px-3 py-2 font-medium">Activo</th>
-                  <th className="px-3 py-2 text-right font-medium">Saldo</th>
-                  <th className="px-3 py-2 text-right font-medium">Valor EUR</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Ubicación</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Activo</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">Saldo</th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">Valor EUR</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -762,12 +784,12 @@ function PanelRecompra({ apuntes, ejercicio }: { apuntes: Apunte[]; ejercicio: n
       <table className="w-full text-sm">
         <thead className="text-xs uppercase tracking-wide text-amber-800/70 dark:text-amber-300/70">
           <tr>
-            <th className="py-1 text-left">Apunte</th>
-            <th className="py-1 text-left">Activo</th>
-            <th className="py-1 text-right">Pérdida</th>
-            <th className="py-1 text-right">Diferida</th>
-            <th className="py-1 text-right">Computable ya</th>
-            <th className="py-1 text-left">Readquisición</th>
+            <th scope="col" className="py-1 text-left">Apunte</th>
+            <th scope="col" className="py-1 text-left">Activo</th>
+            <th scope="col" className="py-1 text-right">Pérdida</th>
+            <th scope="col" className="py-1 text-right">Diferida</th>
+            <th scope="col" className="py-1 text-right">Computable ya</th>
+            <th scope="col" className="py-1 text-left">Readquisición</th>
           </tr>
         </thead>
         <tbody>
@@ -823,11 +845,11 @@ function PanelZonaGris({ apuntes }: { apuntes: Apunte[] }) {
       <table className="w-full text-sm">
         <thead className="text-xs uppercase tracking-wide text-slate-400">
           <tr>
-            <th className="py-1 text-left">Apunte</th>
-            <th className="py-1 text-left">Activo</th>
-            <th className="py-1 text-right">Resultado aplicado</th>
-            <th className="py-1 text-right">Con la alternativa</th>
-            <th className="py-1 text-right">Diferencia</th>
+            <th scope="col" className="py-1 text-left">Apunte</th>
+            <th scope="col" className="py-1 text-left">Activo</th>
+            <th scope="col" className="py-1 text-right">Resultado aplicado</th>
+            <th scope="col" className="py-1 text-right">Con la alternativa</th>
+            <th scope="col" className="py-1 text-right">Diferencia</th>
           </tr>
         </thead>
         <tbody>
